@@ -1,22 +1,35 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { toast } from "sonner";
 import { X, DollarSign, Tag, Globe, History, Clock, MapPin, Award } from "lucide-react";
+import type { Id } from "../../convex/_generated/dataModel";
+
+interface Investment {
+  _id: Id<"investments">;
+  name: string;
+  amount: number;
+  currency: "ILS" | "USD";
+  category: "Israel" | "Abroad" | "Long-Term" | "Short-Term";
+}
 
 interface AddInvestmentFormProps {
   onClose: () => void;
   onSuccess: () => void;
+  investment?: Investment; // Optional investment for editing
 }
 
-export function AddInvestmentForm({ onClose, onSuccess }: AddInvestmentFormProps) {
-  const [name, setName] = useState("");
-  const [amount, setAmount] = useState("");
-  const [currency, setCurrency] = useState<"ILS" | "USD">("ILS");
-  const [category, setCategory] = useState<"Israel" | "Abroad" | "Long-Term" | "Short-Term">("Israel");
+export function AddInvestmentForm({ onClose, onSuccess, investment }: AddInvestmentFormProps) {
+  const [name, setName] = useState(investment?.name || "");
+  const [amount, setAmount] = useState(investment?.amount.toString() || "");
+  const [currency, setCurrency] = useState<"ILS" | "USD">(investment?.currency || "ILS");
+  const [category, setCategory] = useState<"Israel" | "Abroad" | "Long-Term" | "Short-Term">(investment?.category || "Israel");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const addInvestment = useMutation(api.investments.addInvestment);
+  const updateInvestment = useMutation(api.investments.updateInvestment);
+
+  const isEditing = !!investment;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,15 +47,27 @@ export function AddInvestmentForm({ onClose, onSuccess }: AddInvestmentFormProps
 
     setIsSubmitting(true);
     try {
-      await addInvestment({
-        name: name.trim(),
-        amount: amountNum,
-        currency,
-        category,
-      });
+      if (isEditing && investment) {
+        await updateInvestment({
+          investmentId: investment._id,
+          name: name.trim(),
+          amount: amountNum,
+          currency,
+          category,
+        });
+        toast.success("ההשקעה עודכנה בהצלחה");
+      } else {
+        await addInvestment({
+          name: name.trim(),
+          amount: amountNum,
+          currency,
+          category,
+        });
+        toast.success("ההשקעה נוספה לפורטפוליו");
+      }
       onSuccess();
     } catch (error) {
-      toast.error("הוספת ההשקעה נכשלה");
+      toast.error(isEditing ? "עדכון ההשקעה נכשל" : "הוספת ההשקעה נכשלה");
     } finally {
       setIsSubmitting(false);
     }
@@ -57,8 +82,12 @@ export function AddInvestmentForm({ onClose, onSuccess }: AddInvestmentFormProps
               <Award size={24} className="text-black stroke-[3px]" />
             </div>
             <div>
-              <h2 className="text-2xl font-black text-white tracking-tight">נכס חדש</h2>
-              <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest">Add to your wealth</p>
+              <h2 className="text-2xl font-black text-white tracking-tight">
+                {isEditing ? "עריכת נכס" : "נכס חדש"}
+              </h2>
+              <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest">
+                {isEditing ? "Update your asset" : "Add to your wealth"}
+              </p>
             </div>
           </div>
           <button
@@ -156,7 +185,7 @@ export function AddInvestmentForm({ onClose, onSuccess }: AddInvestmentFormProps
               disabled={isSubmitting}
               className="flex-[2] px-8 py-5 bg-gold-gradient text-black rounded-[2rem] font-black uppercase tracking-widest text-sm hover:scale-[1.02] active:scale-95 transition-all shadow-[0_10px_30px_-10px_rgba(212,175,55,0.4)]"
             >
-              {isSubmitting ? "Processing..." : "Confirm Investment"}
+              {isSubmitting ? "Processing..." : (isEditing ? "שמור שינויים" : "Confirm Investment")}
             </button>
           </div>
         </form>

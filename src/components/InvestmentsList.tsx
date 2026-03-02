@@ -2,7 +2,7 @@ import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { toast } from "sonner";
 import type { Id } from "../../convex/_generated/dataModel";
-import { Trash2, TrendingUp, Globe, Clock, History, Briefcase, Diamond } from "lucide-react";
+import { Trash2, TrendingUp, Globe, Clock, History, Briefcase, Diamond, Edit3 } from "lucide-react";
 
 interface Investment {
   _id: Id<"investments">;
@@ -15,9 +15,11 @@ interface Investment {
 interface InvestmentsListProps {
   investments: Investment[];
   exchangeRate: number;
+  onEdit: (investment: Investment) => void;
+  isPrivate: boolean;
 }
 
-export function InvestmentsList({ investments, exchangeRate }: InvestmentsListProps) {
+export function InvestmentsList({ investments, exchangeRate, onEdit, isPrivate }: InvestmentsListProps) {
   const deleteInvestment = useMutation(api.investments.deleteInvestment);
 
   const categoryMap: Record<string, { label: string; icon: any; color: string }> = {
@@ -73,41 +75,50 @@ export function InvestmentsList({ investments, exchangeRate }: InvestmentsListPr
           return (
             <div
               key={investment._id}
-              className="bg-zinc-800/30 border border-zinc-800 rounded-3xl p-5 hover:bg-zinc-800/50 transition-all flex justify-between items-center group relative overflow-hidden"
+              className="bg-zinc-800/30 border border-zinc-800 rounded-2xl p-3 hover:bg-zinc-800/50 transition-all flex justify-between items-center group relative overflow-hidden"
             >
               <div className="flex-1">
-                <div className="flex items-center gap-4 mb-3">
-                  <div className={`p-2.5 rounded-2xl ${cat?.color || "bg-zinc-800 text-zinc-400"}`}>
-                    <Icon size={20} />
+                <div className="flex items-center gap-3 mb-1">
+                  <div className={`p-1.5 rounded-xl ${cat?.color || "bg-zinc-800 text-zinc-400"}`}>
+                    <Icon size={16} />
                   </div>
                   <div>
-                    <h4 className="font-bold text-white text-lg leading-tight">{investment.name}</h4>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                    <h4 className="font-bold text-white text-base leading-tight">{investment.name}</h4>
+                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500">
                       {cat?.label || investment.category}
                     </span>
                   </div>
                 </div>
                 
-                <div className="flex items-baseline gap-3">
-                  <span className="text-2xl font-black text-white tracking-tight">
-                    <span className="text-[#D4AF37] text-sm font-bold mr-1">{investment.currency === "USD" ? "$" : "₪"}</span>
+                <div className={`flex items-baseline gap-2 transition-all duration-500 ${isPrivate ? 'blur-md opacity-40 select-none' : ''}`}>
+                  <span className="text-xl font-black text-white tracking-tight">
+                    <span className="text-[#D4AF37] text-xs font-bold mr-1">{investment.currency === "USD" ? "$" : "₪"}</span>
                     {investment.amount.toLocaleString()}
                   </span>
                   {investment.currency === "USD" && (
-                    <span className="text-xs font-bold text-zinc-500">
+                    <span className="text-[10px] font-bold text-zinc-600">
                       ≈ ₪{valueInILS.toLocaleString('he-IL', { maximumFractionDigits: 0 })}
                     </span>
                   )}
                 </div>
               </div>
 
-              <button
-                onClick={() => handleDelete(investment._id)}
-                className="text-zinc-600 hover:text-red-500 p-3 rounded-2xl hover:bg-red-500/10 transition-all opacity-0 group-hover:opacity-100"
-                title="מחק השקעה"
-              >
-                <Trash2 size={20} />
-              </button>
+              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button
+                  onClick={() => onEdit(investment)}
+                  className="text-zinc-500 hover:text-[#D4AF37] p-2.5 rounded-2xl hover:bg-[#D4AF37]/10 transition-all"
+                  title="ערוך השקעה"
+                >
+                  <Edit3 size={20} />
+                </button>
+                <button
+                  onClick={() => handleDelete(investment._id)}
+                  className="text-zinc-600 hover:text-red-500 p-2.5 rounded-2xl hover:bg-red-500/10 transition-all"
+                  title="מחק השקעה"
+                >
+                  <Trash2 size={20} />
+                </button>
+              </div>
             </div>
           );
         })}

@@ -56,6 +56,39 @@ export const addInvestment = mutation({
   },
 });
 
+export const updateInvestment = mutation({
+  args: {
+    investmentId: v.id("investments"),
+    name: v.string(),
+    amount: v.number(),
+    currency: v.union(v.literal("ILS"), v.literal("USD")),
+    category: v.union(
+      v.literal("Israel"),
+      v.literal("Abroad"),
+      v.literal("Long-Term"),
+      v.literal("Short-Term")
+    ),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Not authenticated");
+    }
+
+    const investment = await ctx.db.get(args.investmentId);
+    if (!investment || investment.userId !== userId) {
+      throw new Error("Investment not found or unauthorized");
+    }
+
+    await ctx.db.patch(args.investmentId, {
+      name: args.name,
+      amount: args.amount,
+      currency: args.currency,
+      category: args.category,
+    });
+  },
+});
+
 export const updateExchangeRate = mutation({
   args: {
     usdToIls: v.number(),

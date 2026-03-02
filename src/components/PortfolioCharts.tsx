@@ -10,9 +10,10 @@ interface Investment {
 interface PortfolioChartsProps {
   investments: Investment[];
   exchangeRate: number;
+  isPrivate: boolean;
 }
 
-export function PortfolioCharts({ investments, exchangeRate }: PortfolioChartsProps) {
+export function PortfolioCharts({ investments, exchangeRate, isPrivate }: PortfolioChartsProps) {
   // Convert all amounts to ILS for calculations
   const investmentsInILS = investments.map(inv => ({
     ...inv,
@@ -84,36 +85,46 @@ export function PortfolioCharts({ investments, exchangeRate }: PortfolioChartsPr
   }
 
   return (
-    <div className="px-4 py-6 space-y-8">
-      <h3 className="text-lg font-semibold text-gray-900 mb-6">פירוט תיק ההשקעות</h3>
+    <div className="px-0 py-2">
+      <h3 className="text-xl font-black text-white mb-6 px-2 tracking-tight underline decoration-[#D4AF37]/30 decoration-4 underline-offset-8">ניתוח תיק</h3>
       
-      {geographicChartData.length > 0 && (
-        <div>
-          <h4 className="text-md font-medium text-gray-800 mb-4">ישראל מול חו"ל</h4>
-          <PieChart data={geographicChartData} />
-        </div>
-      )}
+      <div className="flex gap-4 overflow-x-auto pb-6 -mx-2 px-2 scrollbar-hide snap-x snap-mandatory">
+        {geographicChartData.length > 0 && (
+          <div className="bg-zinc-800/20 p-5 rounded-[2.5rem] border border-zinc-800/50 min-w-[280px] snap-center">
+            <h4 className="text-[10px] font-black text-[#D4AF37] uppercase tracking-widest mb-4 flex items-center gap-2">
+              ישראל מול חו"ל
+            </h4>
+            <PieChart data={geographicChartData} isPrivate={isPrivate} />
+          </div>
+        )}
 
-      {abroadChartData.length > 0 && (
-        <div>
-          <h4 className="text-md font-medium text-gray-800 mb-4">השקעות חו"ל</h4>
-          <PieChart data={abroadChartData} />
-        </div>
-      )}
+        {abroadChartData.length > 0 && (
+          <div className="bg-zinc-800/20 p-5 rounded-[2.5rem] border border-zinc-800/50 min-w-[280px] snap-center">
+            <h4 className="text-[10px] font-black text-[#D4AF37] uppercase tracking-widest mb-4 flex items-center gap-2">
+              השקעות חו"ל
+            </h4>
+            <PieChart data={abroadChartData} isPrivate={isPrivate} />
+          </div>
+        )}
 
-      {israelChartData.length > 0 && (
-        <div>
-          <h4 className="text-md font-medium text-gray-800 mb-4">השקעות בישראל</h4>
-          <PieChart data={israelChartData} />
-        </div>
-      )}
+        {israelChartData.length > 0 && (
+          <div className="bg-zinc-800/20 p-5 rounded-[2.5rem] border border-zinc-800/50 min-w-[280px] snap-center">
+            <h4 className="text-[10px] font-black text-[#D4AF37] uppercase tracking-widest mb-4 flex items-center gap-2">
+              השקעות בישראל
+            </h4>
+            <PieChart data={israelChartData} isPrivate={isPrivate} />
+          </div>
+        )}
 
-      {timeHorizonChartData.length > 0 && (
-        <div>
-          <h4 className="text-md font-medium text-gray-800 mb-4">טווח ארוך מול טווח קצר</h4>
-          <PieChart data={timeHorizonChartData} />
-        </div>
-      )}
+        {timeHorizonChartData.length > 0 && (
+          <div className="bg-zinc-800/20 p-5 rounded-[2.5rem] border border-zinc-800/50 min-w-[280px] snap-center">
+            <h4 className="text-[10px] font-black text-[#D4AF37] uppercase tracking-widest mb-4 flex items-center gap-2">
+              טווח זמן
+            </h4>
+            <PieChart data={timeHorizonChartData} isPrivate={isPrivate} />
+          </div>
+        )}
+      </div>
     </div>
   );
 }

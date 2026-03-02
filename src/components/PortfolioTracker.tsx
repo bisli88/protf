@@ -7,11 +7,22 @@ import { ExchangeRateSection } from "./ExchangeRateSection";
 import { PortfolioCharts } from "./PortfolioCharts";
 import { InvestmentsList } from "./InvestmentsList";
 import { SignOutButton } from "../SignOutButton";
-import { Plus, TrendingUp, Wallet, Award } from "lucide-react";
+import { Plus, TrendingUp, Wallet, Award, Eye, EyeOff } from "lucide-react";
+import type { Id } from "../../convex/_generated/dataModel";
+
+interface Investment {
+  _id: Id<"investments">;
+  name: string;
+  amount: number;
+  currency: "ILS" | "USD";
+  category: "Israel" | "Abroad" | "Long-Term" | "Short-Term";
+}
 
 export function PortfolioTracker() {
   const portfolio = useQuery(api.investments.getPortfolio);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [editingInvestment, setEditingInvestment] = useState<Investment | null>(null);
+  const [isPrivate, setIsPrivate] = useState(false);
 
   if (!portfolio) {
     return (
@@ -31,6 +42,16 @@ export function PortfolioTracker() {
     return total + valueInILS;
   }, 0);
 
+  const handleEdit = (investment: Investment) => {
+    setEditingInvestment(investment);
+    setShowAddForm(true);
+  };
+
+  const handleCloseForm = () => {
+    setShowAddForm(false);
+    setEditingInvestment(null);
+  };
+
   return (
     <div className="max-w-md mx-auto bg-[#0A0A0B] min-h-screen pb-32">
       {/* Premium Header Card */}
@@ -44,24 +65,23 @@ export function PortfolioTracker() {
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#D4AF37]">Wealth Portfolio</p>
           </div>
           
-          <p className="text-sm font-medium text-zinc-500 mb-2">שווי התיק הכולל שלך</p>
-          <p className="text-6xl font-black text-white tracking-tighter">
-            <span className="text-2xl font-normal text-[#D4AF37] ml-2">₪</span>
-            {totalValueILS.toLocaleString('he-IL', { 
-              minimumFractionDigits: 0, 
-              maximumFractionDigits: 0 
-            })}
-          </p>
-          
-          <div className="mt-8 flex justify-center gap-4">
-            <div className="bg-zinc-800/80 px-4 py-2 rounded-2xl border border-zinc-700/50">
-              <p className="text-[10px] text-zinc-500 uppercase font-bold">נכסים</p>
-              <p className="text-lg font-black text-white">{investments.length}</p>
-            </div>
-            <div className="bg-zinc-800/80 px-4 py-2 rounded-2xl border border-zinc-700/50">
-              <p className="text-[10px] text-zinc-500 uppercase font-bold">סטטוס</p>
-              <p className="text-lg font-black text-emerald-500">פעיל</p>
-            </div>
+          <div className="flex flex-col items-center justify-center">
+            <p className="text-sm font-medium text-zinc-500 mb-2 flex items-center gap-2">
+              שווי התיק הכולל שלך
+              <button 
+                onClick={() => setIsPrivate(!isPrivate)}
+                className="p-1.5 hover:bg-zinc-800 rounded-full transition-colors text-zinc-400 hover:text-[#D4AF37]"
+              >
+                {isPrivate ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </p>
+            <p className={`text-6xl font-black text-white tracking-tighter transition-all duration-500 ${isPrivate ? 'blur-xl' : ''}`}>
+              <span className="text-2xl font-normal text-[#D4AF37] ml-2">₪</span>
+              {totalValueILS.toLocaleString('he-IL', { 
+                minimumFractionDigits: 0, 
+                maximumFractionDigits: 0 
+              })}
+            </p>
           </div>
         </div>
       </div>
@@ -75,14 +95,23 @@ export function PortfolioTracker() {
           />
         </div>
 
-        {/* Investments List */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-[2rem] p-1 shadow-xl">
-          <InvestmentsList investments={investments} exchangeRate={exchangeRate} />
-        </div>
-
         {/* Charts Section */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-[2rem] p-6 shadow-xl">
-          <PortfolioCharts investments={investments} exchangeRate={exchangeRate} />
+          <PortfolioCharts 
+            investments={investments} 
+            exchangeRate={exchangeRate} 
+            isPrivate={isPrivate}
+          />
+        </div>
+
+        {/* Investments List */}
+        <div className="bg-zinc-900 border border-zinc-800 rounded-[2rem] p-1 shadow-xl">
+          <InvestmentsList 
+            investments={investments} 
+            exchangeRate={exchangeRate} 
+            onEdit={handleEdit}
+            isPrivate={isPrivate}
+          />
         </div>
 
         {/* Sign Out Section */}
@@ -105,13 +134,9 @@ export function PortfolioTracker() {
       {/* Modal Backdrop and Form */}
       {showAddForm && (
         <AddInvestmentForm 
-          onClose={() => setShowAddForm(false)}
-          onSuccess={() => {
-            setShowAddForm(false);
-            toast.success("ההשקעה נוספה לפורטפוליו", {
-              className: "bg-zinc-900 text-white border-zinc-800"
-            });
-          }}
+          onClose={handleCloseForm}
+          onSuccess={handleCloseForm}
+          investment={editingInvestment || undefined}
         />
       )}
     </div>
