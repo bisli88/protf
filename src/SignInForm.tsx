@@ -44,10 +44,10 @@ export function SignInForm() {
           void signIn("password", formData)
             .then(() => {
               if (flow === "reset") {
-                toast.success("Check your email for a reset link.");
+                toast.success("בדוק את האימייל שלך לקבלת קישור לאיפוס.");
                 setFlow("signIn");
               } else if (flow === "reset-verification") {
-                toast.success("Password reset successfully. You are now signed in.");
+                toast.success("הסיסמה שונתה בהצלחה. כעת אתה מחובר.");
               }
               setSubmitting(false);
             })
@@ -55,16 +55,16 @@ export function SignInForm() {
               console.error("Sign-in error:", error);
               let toastTitle = "";
               if (error.message.includes("Invalid password")) {
-                toastTitle = "Invalid password. Please try again.";
+                toastTitle = "סיסמה שגויה. אנא נסה שוב.";
               } else if (flow === "reset") {
-                toastTitle = `Could not send reset email: ${error.message}`;
+                toastTitle = `לא ניתן לשלוח אימייל לאיפוס: ${error.message}`;
               } else if (flow === "reset-verification") {
-                toastTitle = `Invalid or expired reset code: ${error.message}`;
+                toastTitle = `קוד איפוס לא תקין או פג תוקף: ${error.message}`;
               } else {
                 toastTitle =
                   flow === "signIn"
-                    ? `Could not sign in: ${error.message}`
-                    : `Could not sign up: ${error.message}`;
+                    ? `לא ניתן להתחבר: ${error.message}`
+                    : `לא ניתן להירשם: ${error.message}`;
               }
               toast.error(toastTitle);
               setSubmitting(false);
@@ -75,7 +75,7 @@ export function SignInForm() {
           className="auth-input-field"
           type="email"
           name="email"
-          placeholder="Email"
+          placeholder="אימייל"
           required
           value={email}
           readOnly={isResetVerification && !!email}
@@ -87,19 +87,19 @@ export function SignInForm() {
             className="auth-input-field"
             type="password"
             name={isResetVerification ? "newPassword" : "password"}
-            placeholder={isResetVerification ? "New Password" : "Password"}
+            placeholder={isResetVerification ? "סיסמה חדשה" : "סיסמה"}
             required
           />
         )}
 
         <button className="auth-button" type="submit" disabled={submitting}>
           {flow === "signIn"
-            ? "Sign in"
+            ? "התחברות"
             : flow === "signUp"
-              ? "Sign up"
+              ? "הרשמה"
               : flow === "reset"
-                ? "Send reset email"
-                : "Reset password"}
+                ? "שלח אימייל לאיפוס"
+                : "אפס סיסמה"}
         </button>
         <div className="text-center text-sm text-secondary">
           {flow === "signIn" ? (
@@ -110,38 +110,38 @@ export function SignInForm() {
                   className="text-primary hover:text-primary-hover hover:underline font-medium cursor-pointer"
                   onClick={() => setFlow("reset")}
                 >
-                  Forgot password?
+                  שכחת סיסמה?
                 </button>
               </div>
-              <span>Don't have an account? </span>
+              <span>אין לך חשבון? </span>
               <button
                 type="button"
                 className="text-primary hover:text-primary-hover hover:underline font-medium cursor-pointer"
                 onClick={() => setFlow("signUp")}
               >
-                Sign up instead
+                הירשם במקום
               </button>
             </>
           ) : flow === "signUp" ? (
             <>
-              <span>Already have an account? </span>
+              <span>כבר יש לך חשבון? </span>
               <button
                 type="button"
                 className="text-primary hover:text-primary-hover hover:underline font-medium cursor-pointer"
                 onClick={() => setFlow("signIn")}
               >
-                Sign in instead
+                התחבר במקום
               </button>
             </>
           ) : (
             <>
-              <span>Remembered your password? </span>
+              <span>זוכר את הסיסמה? </span>
               <button
                 type="button"
                 className="text-primary hover:text-primary-hover hover:underline font-medium cursor-pointer"
                 onClick={() => setFlow("signIn")}
               >
-                Sign in instead
+                התחבר במקום
               </button>
             </>
           )}
@@ -149,11 +149,11 @@ export function SignInForm() {
       </form>
       <div className="flex items-center justify-center my-3">
         <hr className="my-4 grow border-gray-200" />
-        <span className="mx-4 text-secondary">or</span>
+        <span className="mx-4 text-secondary">או</span>
         <hr className="my-4 grow border-gray-200" />
       </div>
       <button className="auth-button" onClick={() => void signIn("anonymous")}>
-        Sign in anonymously
+        התחבר באופן אנונימי
       </button>
     </div>
   );

@@ -15,6 +15,7 @@
     "chart.js": "^4.5.1",
     "clsx": "^2.1.1",
     "convex": "^1.31.2",
+    "lucide-react": "^0.576.0",
     "react": "^19.2.1",
     "react-chartjs-2": "^5.3.1",
     "react-dom": "^19.2.1",

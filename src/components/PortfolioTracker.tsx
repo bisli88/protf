@@ -6,6 +6,7 @@ import { AddInvestmentForm } from "./AddInvestmentForm";
 import { ExchangeRateSection } from "./ExchangeRateSection";
 import { PortfolioCharts } from "./PortfolioCharts";
 import { InvestmentsList } from "./InvestmentsList";
+import { Plus, TrendingUp, Wallet } from "lucide-react";
 
 export function PortfolioTracker() {
   const portfolio = useQuery(api.investments.getPortfolio);
@@ -13,8 +14,9 @@ export function PortfolioTracker() {
 
   if (!portfolio) {
     return (
-      <div className="flex justify-center items-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="flex flex-col justify-center items-center py-20">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-4"></div>
+        <p className="text-gray-500 font-medium">טוען את התיק שלך...</p>
       </div>
     );
   }
@@ -30,33 +32,56 @@ export function PortfolioTracker() {
   }, 0);
 
   return (
-    <div className="max-w-md mx-auto bg-white min-h-screen">
-      {/* Portfolio Total */}
-      <div className="px-4 py-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-b">
+    <div className="max-w-md mx-auto bg-gray-50 min-h-screen pb-24">
+      {/* Header Stat Card */}
+      <div className="px-4 pt-8 pb-10 bg-gradient-to-br from-blue-700 to-indigo-800 text-white rounded-b-[2.5rem] shadow-lg mb-6">
+        <div className="flex items-center justify-center gap-2 mb-2 opacity-90">
+          <Wallet size={18} />
+          <p className="text-sm font-medium uppercase tracking-wider">שווי תיק כולל</p>
+        </div>
         <div className="text-center">
-          <p className="text-sm text-gray-600 mb-1">Total Portfolio Value</p>
-          <p className="text-3xl font-bold text-gray-900">
-            ₪{totalValueILS.toLocaleString('en-US', { 
+          <p className="text-5xl font-extrabold tracking-tight">
+            <span className="text-3xl font-normal ml-1">₪</span>
+            {totalValueILS.toLocaleString('he-IL', { 
               minimumFractionDigits: 0, 
               maximumFractionDigits: 0 
             })}
           </p>
+          <div className="mt-4 inline-flex items-center gap-2 bg-white/20 px-4 py-1.5 rounded-full text-sm backdrop-blur-md">
+            <TrendingUp size={16} />
+            <span>התיק שלך מעודכן</span>
+          </div>
         </div>
       </div>
 
-      {/* Exchange Rate Section */}
-      <ExchangeRateSection 
-        exchangeRate={exchangeRate}
-        lastUpdated={portfolio.lastUpdated}
-      />
+      <div className="px-4 space-y-6">
+        {/* Exchange Rate Section */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <ExchangeRateSection 
+            exchangeRate={exchangeRate}
+            lastUpdated={portfolio.lastUpdated}
+          />
+        </div>
 
-      {/* Add Investment Button */}
-      <div className="px-4 py-4 border-b">
+        {/* Investments List */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-1">
+          <InvestmentsList investments={investments} exchangeRate={exchangeRate} />
+        </div>
+
+        {/* Charts Section */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+          <PortfolioCharts investments={investments} exchangeRate={exchangeRate} />
+        </div>
+      </div>
+
+      {/* Floating Add Button - Best for Mobile UX */}
+      <div className="fixed bottom-6 right-6 left-6 flex justify-center z-40 pointer-events-none">
         <button
           onClick={() => setShowAddForm(true)}
-          className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+          className="pointer-events-auto bg-blue-600 hover:bg-blue-700 text-white shadow-2xl shadow-blue-500/50 flex items-center gap-3 px-8 py-4 rounded-full font-bold transition-all hover:scale-105 active:scale-95 group"
         >
-          Add New Investment
+          <Plus size={24} className="group-hover:rotate-90 transition-transform duration-300" />
+          <span>הוסף השקעה חדשה</span>
         </button>
       </div>
 
@@ -66,16 +91,13 @@ export function PortfolioTracker() {
           onClose={() => setShowAddForm(false)}
           onSuccess={() => {
             setShowAddForm(false);
-            toast.success("Investment added successfully");
+            toast.success("ההשקעה נוספה בהצלחה!", {
+              icon: "💰",
+              className: "bg-green-50 text-green-800 border-green-100"
+            });
           }}
         />
       )}
-
-      {/* Investments List */}
-      <InvestmentsList investments={investments} exchangeRate={exchangeRate} />
-
-      {/* Charts */}
-      <PortfolioCharts investments={investments} exchangeRate={exchangeRate} />
     </div>
   );
 }

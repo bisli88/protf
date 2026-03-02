@@ -94,7 +94,7 @@ export function PieChart({ data }: PieChartProps) {
                 </div>
                 <div className="text-right">
                   <div className="font-medium text-gray-900">
-                    ₪{item.value.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                    ₪{item.value.toLocaleString('he-IL', { maximumFractionDigits: 0 })}
                   </div>
                   <div className="text-xs text-gray-500">{percentage}%</div>
                 </div>

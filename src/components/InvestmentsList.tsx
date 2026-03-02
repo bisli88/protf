@@ -2,6 +2,7 @@ import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { toast } from "sonner";
 import type { Id } from "../../convex/_generated/dataModel";
+import { Trash2, TrendingUp, Globe, Clock, History, Briefcase } from "lucide-react";
 
 interface Investment {
   _id: Id<"investments">;
@@ -19,67 +20,93 @@ interface InvestmentsListProps {
 export function InvestmentsList({ investments, exchangeRate }: InvestmentsListProps) {
   const deleteInvestment = useMutation(api.investments.deleteInvestment);
 
+  const categoryMap: Record<string, { label: string; icon: any; color: string }> = {
+    "Israel": { label: "ישראל", icon: TrendingUp, color: "bg-blue-100 text-blue-700" },
+    "Abroad": { label: "חו\"ל", icon: Globe, color: "bg-emerald-100 text-emerald-700" },
+    "Long-Term": { label: "טווח ארוך", icon: History, color: "bg-purple-100 text-purple-700" },
+    "Short-Term": { label: "טווח קצר", icon: Clock, color: "bg-orange-100 text-orange-700" }
+  };
+
   const handleDelete = async (investmentId: Id<"investments">) => {
-    if (confirm("Are you sure you want to delete this investment?")) {
+    if (confirm("האם אתה בטוח שברצונך למחוק השקעה זו?")) {
       try {
         await deleteInvestment({ investmentId });
-        toast.success("Investment deleted");
+        toast.success("ההשקעה נמחקה");
       } catch (error) {
-        toast.error("Failed to delete investment");
+        toast.error("מחיקת ההשקעה נכשלה");
       }
     }
   };
 
   if (investments.length === 0) {
     return (
-      <div className="px-4 py-8 text-center text-gray-500">
-        <p>No investments yet.</p>
-        <p className="text-sm">Add your first investment to get started!</p>
+      <div className="px-6 py-12 text-center">
+        <div className="bg-gray-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
+          <Briefcase className="text-gray-300" size={32} />
+        </div>
+        <h3 className="text-lg font-bold text-gray-900 mb-2">אין השקעות עדיין</h3>
+        <p className="text-gray-500 max-w-[200px] mx-auto text-sm">
+          הוסף את ההשקעה הראשונה שלך כדי להתחיל לעקוב אחר התיק
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="px-4 py-4">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">Your Investments</h3>
-      <div className="space-y-3">
+    <div className="px-4 py-5">
+      <div className="flex items-center justify-between mb-5 px-1">
+        <h3 className="text-xl font-bold text-gray-900">ההשקעות שלך</h3>
+        <span className="bg-blue-50 text-blue-600 text-xs font-bold px-2.5 py-1 rounded-full border border-blue-100">
+          {investments.length} נכסים
+        </span>
+      </div>
+      
+      <div className="space-y-4">
         {investments.map((investment) => {
           const valueInILS = investment.currency === "USD" 
             ? investment.amount * exchangeRate 
             : investment.amount;
+          
+          const cat = categoryMap[investment.category];
+          const Icon = cat?.icon || Briefcase;
 
           return (
             <div
               key={investment._id}
-              className="bg-gray-50 rounded-lg p-4 flex justify-between items-center"
+              className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow flex justify-between items-center group"
             >
               <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <h4 className="font-medium text-gray-900">{investment.name}</h4>
-                  <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                    {investment.category}
-                  </span>
+                <div className="flex items-center gap-3 mb-2">
+                  <div className={`p-2 rounded-xl ${cat?.color || "bg-gray-100 text-gray-600"}`}>
+                    <Icon size={18} />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-gray-900 leading-tight">{investment.name}</h4>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                      {cat?.label || investment.category}
+                    </span>
+                  </div>
                 </div>
-                <div className="text-sm text-gray-600">
-                  <span className="font-medium">
+                
+                <div className="flex items-baseline gap-2">
+                  <span className="text-lg font-black text-gray-900">
                     {investment.currency === "USD" ? "$" : "₪"}
                     {investment.amount.toLocaleString()}
                   </span>
                   {investment.currency === "USD" && (
-                    <span className="ml-2">
-                      (₪{valueInILS.toLocaleString('en-US', { maximumFractionDigits: 0 })})
+                    <span className="text-sm font-medium text-gray-400">
+                      ≈ ₪{valueInILS.toLocaleString('he-IL', { maximumFractionDigits: 0 })}
                     </span>
                   )}
                 </div>
               </div>
+
               <button
                 onClick={() => handleDelete(investment._id)}
-                className="text-red-500 hover:text-red-700 p-2"
-                title="Delete investment"
+                className="text-gray-300 hover:text-red-500 p-3 rounded-xl hover:bg-red-50 transition-all active:scale-90"
+                title="מחק השקעה"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
+                <Trash2 size={20} />
               </button>
             </div>
           );

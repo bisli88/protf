@@ -29,7 +29,7 @@ export function PortfolioCharts({ investments, exchangeRate }: PortfolioChartsPr
     }, {} as Record<"Israel" | "Abroad", number>);
 
   const geographicChartData = Object.entries(geographicData).map(([label, value]) => ({
-    label,
+    label: label === "Israel" ? "ישראל" : "חו\"ל",
     value,
     color: label === "Israel" ? "#3B82F6" : "#10B981",
   }));
@@ -70,7 +70,7 @@ export function PortfolioCharts({ investments, exchangeRate }: PortfolioChartsPr
     }, {} as Record<"Long-Term" | "Short-Term", number>);
 
   const timeHorizonChartData = Object.entries(timeHorizonData).map(([label, value]) => ({
-    label,
+    label: label === "Long-Term" ? "טווח ארוך" : "טווח קצר",
     value,
     color: label === "Long-Term" ? "#8B5CF6" : "#F59E0B",
   }));
@@ -78,39 +78,39 @@ export function PortfolioCharts({ investments, exchangeRate }: PortfolioChartsPr
   if (investments.length === 0) {
     return (
       <div className="px-4 py-8 text-center text-gray-500">
-        <p>Add investments to see portfolio breakdown charts</p>
+        <p>הוסף השקעות כדי לראות תרשימי פירוט של התיק</p>
       </div>
     );
   }
 
   return (
     <div className="px-4 py-6 space-y-8">
-      <h3 className="text-lg font-semibold text-gray-900 mb-6">Portfolio Breakdown</h3>
+      <h3 className="text-lg font-semibold text-gray-900 mb-6">פירוט תיק ההשקעות</h3>
       
       {geographicChartData.length > 0 && (
         <div>
-          <h4 className="text-md font-medium text-gray-800 mb-4">Israel vs Abroad</h4>
+          <h4 className="text-md font-medium text-gray-800 mb-4">ישראל מול חו"ל</h4>
           <PieChart data={geographicChartData} />
         </div>
       )}
 
       {abroadChartData.length > 0 && (
         <div>
-          <h4 className="text-md font-medium text-gray-800 mb-4">Abroad Investments</h4>
+          <h4 className="text-md font-medium text-gray-800 mb-4">השקעות חו"ל</h4>
           <PieChart data={abroadChartData} />
         </div>
       )}
 
       {israelChartData.length > 0 && (
         <div>
-          <h4 className="text-md font-medium text-gray-800 mb-4">Israel Investments</h4>
+          <h4 className="text-md font-medium text-gray-800 mb-4">השקעות בישראל</h4>
           <PieChart data={israelChartData} />
         </div>
       )}
 
       {timeHorizonChartData.length > 0 && (
         <div>
-          <h4 className="text-md font-medium text-gray-800 mb-4">Long-Term vs Short-Term</h4>
+          <h4 className="text-md font-medium text-gray-800 mb-4">טווח ארוך מול טווח קצר</h4>
           <PieChart data={timeHorizonChartData} />
         </div>
       )}

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { toast } from "sonner";
+import { X, DollarSign, Tag, Globe, History, Clock, MapPin } from "lucide-react";
 
 interface AddInvestmentFormProps {
   onClose: () => void;
@@ -21,13 +22,13 @@ export function AddInvestmentForm({ onClose, onSuccess }: AddInvestmentFormProps
     e.preventDefault();
     
     if (!name.trim()) {
-      toast.error("Please enter an investment name");
+      toast.error("אנא הזן שם להשקעה");
       return;
     }
     
     const amountNum = parseFloat(amount);
     if (isNaN(amountNum) || amountNum <= 0) {
-      toast.error("Please enter a valid amount");
+      toast.error("אנא הזן סכום תקין");
       return;
     }
 
@@ -41,103 +42,122 @@ export function AddInvestmentForm({ onClose, onSuccess }: AddInvestmentFormProps
       });
       onSuccess();
     } catch (error) {
-      toast.error("Failed to add investment");
+      toast.error("הוספת ההשקעה נכשלה");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end justify-center z-50">
-      <div className="bg-white w-full max-w-md rounded-t-xl p-6 animate-slide-up">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-semibold">Add New Investment</h2>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+      <div className="bg-white w-full max-w-md rounded-t-[2rem] sm:rounded-[2rem] p-8 animate-slide-up shadow-2xl overflow-y-auto max-h-[95vh]">
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h2 className="text-2xl font-black text-gray-900">הוספת השקעה</h2>
+            <p className="text-gray-500 text-sm">הזן את פרטי ההשקעה החדשה שלך</p>
+          </div>
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 text-2xl"
+            className="bg-gray-100 text-gray-400 hover:text-gray-600 p-2 rounded-full transition-colors"
           >
-            ×
+            <X size={24} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Investment Name
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-2">
+            <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
+              <Tag size={16} className="text-blue-500" />
+              שם ההשקעה
             </label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="e.g., Apple Stock, Bitcoin, etc."
+              className="w-full px-5 py-4 bg-gray-50 border-transparent focus:bg-white focus:border-blue-500 border-2 rounded-2xl outline-none transition-all text-gray-900 font-medium"
+              placeholder="למשל: מניית אפל, ביטקוין וכו'"
               required
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Amount Invested
-            </label>
-            <input
-              type="number"
-              step="0.01"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="0.00"
-              required
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
+                <DollarSign size={16} className="text-emerald-500" />
+                סכום
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                className="w-full px-5 py-4 bg-gray-50 border-transparent focus:bg-white focus:border-blue-500 border-2 rounded-2xl outline-none transition-all text-gray-900 font-medium"
+                placeholder="0.00"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
+                <Globe size={16} className="text-indigo-500" />
+                מטבע
+              </label>
+              <div className="relative">
+                <select
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value as "ILS" | "USD")}
+                  className="w-full px-5 py-4 bg-gray-50 border-transparent focus:bg-white focus:border-blue-500 border-2 rounded-2xl outline-none transition-all text-gray-900 font-bold appearance-none cursor-pointer"
+                >
+                  <option value="ILS">₪ שקל</option>
+                  <option value="USD">$ דולר</option>
+                </select>
+              </div>
+            </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Currency
+          <div className="space-y-2">
+            <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
+              <MapPin size={16} className="text-orange-500" />
+              קטגוריית השקעה
             </label>
-            <select
-              value={currency}
-              onChange={(e) => setCurrency(e.target.value as "ILS" | "USD")}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="ILS">₪ (Israeli Shekel)</option>
-              <option value="USD">$ (US Dollar)</option>
-            </select>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { id: 'Israel', label: 'ישראל', icon: MapPin, color: 'blue' },
+                { id: 'Abroad', label: 'חו"ל', icon: Globe, color: 'emerald' },
+                { id: 'Long-Term', label: 'טווח ארוך', icon: History, color: 'purple' },
+                { id: 'Short-Term', label: 'טווח קצר', icon: Clock, color: 'orange' }
+              ].map((cat) => (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => setCategory(cat.id as any)}
+                  className={`flex items-center justify-center gap-2 p-4 rounded-2xl border-2 transition-all font-bold text-sm ${
+                    category === cat.id 
+                      ? `bg-${cat.color}-50 border-${cat.color}-500 text-${cat.color}-700 shadow-sm` 
+                      : 'bg-gray-50 border-transparent text-gray-500 hover:bg-gray-100'
+                  }`}
+                >
+                  <cat.icon size={16} />
+                  {cat.label}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Investment Category
-            </label>
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value as "Israel" | "Abroad" | "Long-Term" | "Short-Term")}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <optgroup label="Geographic">
-                <option value="Israel">Israel</option>
-                <option value="Abroad">Abroad</option>
-              </optgroup>
-              <optgroup label="Time Horizon">
-                <option value="Long-Term">Long-Term</option>
-                <option value="Short-Term">Short-Term</option>
-              </optgroup>
-            </select>
-          </div>
-
-          <div className="flex gap-3 pt-4">
+          <div className="flex gap-4 pt-4">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+              className="flex-1 px-6 py-4 bg-gray-100 text-gray-600 rounded-2xl font-bold hover:bg-gray-200 transition-colors"
             >
-              Cancel
+              ביטול
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-[2] px-6 py-4 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-200 transition-all active:scale-95"
             >
-              {isSubmitting ? "Adding..." : "Add Investment"}
+              {isSubmitting ? "מוסיף..." : "הוסף השקעה"}
             </button>
           </div>
         </form>
