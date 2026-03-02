@@ -27,6 +27,8 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
           const from = process.env.AUTH_EMAIL_FROM ?? "Portfolio Tracker <onboarding@resend.dev>";
 
           const resetUrl = new URL(url);
+          resetUrl.protocol = "https:";
+          resetUrl.hostname = "protf-59t1eaf9c-bisli88s-projects.vercel.app";
           // Convex Auth's default URL includes `code` but not `email`.
           // Include the email so the client can complete reset-verification without extra typing.
           resetUrl.searchParams.set("email", identifier);
