@@ -21,26 +21,23 @@ export function PieChart({ data, isPrivate }: PieChartProps) {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Set canvas size for high DPI displays
     const rect = canvas.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
     canvas.width = rect.width * dpr;
     canvas.height = rect.height * dpr;
     ctx.scale(dpr, dpr);
 
-    // Clear canvas
     ctx.clearRect(0, 0, rect.width, rect.height);
 
     if (data.length === 0) return;
 
     const centerX = rect.width / 2;
     const centerY = rect.height / 2;
-    const radius = Math.min(centerX, centerY) - 20;
+    const radius = Math.min(centerX, centerY) - 10;
 
     const total = data.reduce((sum, item) => sum + item.value, 0);
-    let currentAngle = -Math.PI / 2; // Start from top
+    let currentAngle = -Math.PI / 2;
 
-    // Draw pie slices
     data.forEach((item) => {
       const sliceAngle = (item.value / total) * 2 * Math.PI;
       
@@ -51,26 +48,23 @@ export function PieChart({ data, isPrivate }: PieChartProps) {
       ctx.fillStyle = item.color;
       ctx.fill();
       
-      // Draw slice border
-      ctx.strokeStyle = "#161618"; // Matching card-bg
-      ctx.lineWidth = 3;
+      ctx.strokeStyle = "#161618";
+      ctx.lineWidth = 2;
       ctx.stroke();
 
       currentAngle += sliceAngle;
     });
 
-    // Draw center circle for donut effect
     ctx.beginPath();
     ctx.arc(centerX, centerY, radius * 0.6, 0, 2 * Math.PI);
-    ctx.fillStyle = "#161618"; // Dark center
+    ctx.fillStyle = "#161618";
     ctx.fill();
-    ctx.strokeStyle = "#3f3f46"; // zinc-700
+    ctx.strokeStyle = "#3f3f46";
     ctx.lineWidth = 1;
     ctx.stroke();
 
-    // If private mode is on, we blur the entire canvas
     if (isPrivate) {
-      canvas.style.filter = "blur(12px)";
+      canvas.style.filter = "blur(8px)";
       canvas.style.opacity = "0.5";
     } else {
       canvas.style.filter = "none";
@@ -80,36 +74,37 @@ export function PieChart({ data, isPrivate }: PieChartProps) {
   }, [data, isPrivate]);
 
   const total = data.reduce((sum, item) => sum + item.value, 0);
+  const showScroll = data.length > 4;
 
   return (
-    <div className="bg-zinc-900/40 rounded-3xl p-2">
-      <div className="flex flex-col items-center">
-        <div className="relative mb-8">
-          <canvas
-            ref={canvasRef}
-            className="w-56 h-56 transition-all duration-500"
-            style={{ width: "224px", height: "224px" }}
-          />
-        </div>
-        
-        <div className="w-full space-y-4 px-2">
+    <div className="bg-zinc-900/40 rounded-3xl p-3 flex flex-col items-center gap-4 max-h-[320px]">
+      <div className="relative shrink-0">
+        <canvas
+          ref={canvasRef}
+          className="w-32 h-32 transition-all duration-500"
+          style={{ width: "128px", height: "128px" }}
+        />
+      </div>
+      
+      <div className={`w-full px-1 overflow-y-auto pr-2 custom-scrollbar ${showScroll ? 'h-36' : ''}`}>
+        <div className="space-y-3">
           {data.map((item, index) => {
             const percentage = ((item.value / total) * 100).toFixed(1);
             return (
-              <div key={index} className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
+              <div key={index} className="flex items-center justify-between border-b border-zinc-800/50 pb-2 last:border-0">
+                <div className="flex items-center gap-2 max-w-[50%]">
                   <div
-                    className="w-3 h-3 rounded-full shadow-[0_0_10px_rgba(0,0,0,0.5)]"
+                    className="w-2 h-2 rounded-full shrink-0 shadow-[0_0_5px_rgba(0,0,0,0.5)]"
                     style={{ backgroundColor: item.color }}
                   />
-                  <span className="text-zinc-400 text-sm font-bold uppercase tracking-wider">{item.label}</span>
+                  <span className="text-zinc-400 text-[10px] font-bold uppercase tracking-wider truncate">{item.label}</span>
                 </div>
                 <div className={`text-right flex flex-col items-end transition-all duration-500 ${isPrivate ? 'blur-md opacity-40 select-none' : ''}`}>
-                  <div className="text-xl font-black text-[#D4AF37] leading-none mb-1 drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]">
+                  <div className="text-sm font-black text-[#D4AF37] leading-none mb-0.5">
                     {percentage}%
                   </div>
-                  <div className="font-bold text-zinc-300 text-sm tracking-tight">
-                    <span className="text-zinc-500 text-[10px] ml-1">₪</span>
+                  <div className="font-bold text-zinc-400 text-[10px] tracking-tight">
+                    <span className="text-zinc-600 text-[8px] ml-0.5">₪</span>
                     {item.value.toLocaleString('he-IL', { maximumFractionDigits: 0 })}
                   </div>
                 </div>
