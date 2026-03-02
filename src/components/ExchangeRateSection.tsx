@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useAction, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { toast } from "sonner";
-import { RefreshCw, Edit3, Save, X, Info } from "lucide-react";
+import { RefreshCw, Edit3, Save, X, Info, TrendingUp } from "lucide-react";
 
 interface ExchangeRateSectionProps {
   exchangeRate: number;
@@ -21,7 +21,9 @@ export function ExchangeRateSection({ exchangeRate, lastUpdated }: ExchangeRateS
     setIsUpdating(true);
     try {
       await fetchExchangeRate();
-      toast.success("שער החליפין עודכן מהאינטרנט");
+      toast.success("שער החליפין עודכן בהצלחה", {
+        className: "bg-zinc-900 text-white border-zinc-800"
+      });
     } catch (error) {
       toast.error("עדכון שער החליפין נכשל");
     } finally {
@@ -39,7 +41,7 @@ export function ExchangeRateSection({ exchangeRate, lastUpdated }: ExchangeRateS
     try {
       await updateExchangeRate({ usdToIls: newRate });
       setIsEditing(false);
-      toast.success("שער החליפין עודכן ידנית");
+      toast.success("השער עודכן ידנית");
     } catch (error) {
       toast.error("עדכון שער החליפין נכשל");
     }
@@ -56,45 +58,44 @@ export function ExchangeRateSection({ exchangeRate, lastUpdated }: ExchangeRateS
   };
 
   return (
-    <div className="p-5">
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div className="bg-blue-50 p-2.5 rounded-xl">
-            <RefreshCw className={`text-blue-600 ${isUpdating ? 'animate-spin' : ''}`} size={20} />
+    <div className="p-6 bg-zinc-900/50">
+      <div className="flex items-start justify-between mb-6">
+        <div className="flex items-center gap-4">
+          <div className="bg-[#D4AF37]/10 p-3 rounded-2xl border border-[#D4AF37]/20">
+            <RefreshCw className={`text-[#D4AF37] ${isUpdating ? 'animate-spin' : ''}`} size={24} />
           </div>
           <div>
-            <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider">שער חליפין USD/ILS</h4>
+            <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">USD to ILS Rate</h4>
             {isEditing ? (
-              <div className="flex items-center gap-2 mt-1">
+              <div className="flex items-center gap-2 mt-2">
                 <input
                   type="number"
                   step="0.01"
                   value={editValue}
                   onChange={(e) => setEditValue(e.target.value)}
-                  className="w-24 px-3 py-1.5 text-lg font-bold border-2 border-blue-500 rounded-xl focus:outline-none bg-blue-50"
+                  className="w-28 px-4 py-2 text-lg font-black bg-zinc-800 border-2 border-[#D4AF37] rounded-xl text-white outline-none"
                   autoFocus
                 />
                 <button
                   onClick={handleSaveManualRate}
-                  className="p-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors"
-                  title="שמור"
+                  className="p-2.5 bg-emerald-500 text-black rounded-xl hover:bg-emerald-400 transition-colors"
                 >
-                  <Save size={18} />
+                  <Save size={20} strokeWidth={3} />
                 </button>
                 <button
                   onClick={() => {
                     setIsEditing(false);
                     setEditValue(exchangeRate.toString());
                   }}
-                  className="p-2 bg-gray-200 text-gray-500 rounded-lg hover:bg-gray-300 transition-colors"
-                  title="ביטול"
+                  className="p-2.5 bg-zinc-700 text-white rounded-xl hover:bg-zinc-600 transition-colors"
                 >
-                  <X size={18} />
+                  <X size={20} strokeWidth={3} />
                 </button>
               </div>
             ) : (
-              <p className="text-2xl font-black text-gray-900 mt-0.5">
-                ₪{exchangeRate.toFixed(3)} <span className="text-sm font-medium text-gray-400">ל-$1</span>
+              <p className="text-3xl font-black text-white mt-1 tracking-tight">
+                <span className="text-[#D4AF37] text-xl font-bold mr-1">₪</span>
+                {exchangeRate.toFixed(3)}
               </p>
             )}
           </div>
@@ -105,25 +106,25 @@ export function ExchangeRateSection({ exchangeRate, lastUpdated }: ExchangeRateS
             <button
               onClick={handleFetchRate}
               disabled={isUpdating}
-              className="p-2.5 bg-gray-50 text-blue-600 rounded-xl hover:bg-blue-50 transition-colors border border-transparent hover:border-blue-100 disabled:opacity-50"
+              className="p-3 bg-zinc-800/80 text-[#D4AF37] rounded-2xl hover:bg-zinc-700 transition-all border border-zinc-700/50 disabled:opacity-50"
               title="עדכן מהאינטרנט"
             >
-              <RefreshCw size={20} className={isUpdating ? 'animate-spin' : ''} />
+              <RefreshCw size={22} className={isUpdating ? 'animate-spin' : ''} />
             </button>
             <button
               onClick={() => setIsEditing(true)}
-              className="p-2.5 bg-gray-50 text-gray-600 rounded-xl hover:bg-gray-100 transition-colors border border-transparent hover:border-gray-200"
+              className="p-3 bg-zinc-800/80 text-zinc-400 rounded-2xl hover:bg-zinc-700 transition-all border border-zinc-700/50"
               title="ערוך ידנית"
             >
-              <Edit3 size={20} />
+              <Edit3 size={22} />
             </button>
           </div>
         )}
       </div>
       
-      <div className="flex items-center gap-2 text-[11px] font-bold text-gray-400 bg-gray-50 px-3 py-1.5 rounded-lg w-fit">
-        <Info size={12} />
-        <span>עודכן לאחרונה: {formatLastUpdated(lastUpdated)}</span>
+      <div className="flex items-center gap-2 text-[10px] font-black text-zinc-500 bg-zinc-800/50 px-4 py-2 rounded-xl w-fit border border-zinc-800">
+        <Info size={14} className="text-[#D4AF37]" />
+        <span className="uppercase tracking-widest">עודכן לאחרונה: {formatLastUpdated(lastUpdated)}</span>
       </div>
     </div>
   );

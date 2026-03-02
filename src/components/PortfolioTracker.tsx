@@ -6,7 +6,8 @@ import { AddInvestmentForm } from "./AddInvestmentForm";
 import { ExchangeRateSection } from "./ExchangeRateSection";
 import { PortfolioCharts } from "./PortfolioCharts";
 import { InvestmentsList } from "./InvestmentsList";
-import { Plus, TrendingUp, Wallet } from "lucide-react";
+import { SignOutButton } from "../SignOutButton";
+import { Plus, TrendingUp, Wallet, Award } from "lucide-react";
 
 export function PortfolioTracker() {
   const portfolio = useQuery(api.investments.getPortfolio);
@@ -14,16 +15,15 @@ export function PortfolioTracker() {
 
   if (!portfolio) {
     return (
-      <div className="flex flex-col justify-center items-center py-20">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-4"></div>
-        <p className="text-gray-500 font-medium">טוען את התיק שלך...</p>
+      <div className="flex flex-col justify-center items-center py-20 bg-[#0A0A0B] min-h-screen">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#D4AF37] mb-4"></div>
+        <p className="text-[#D4AF37] font-medium">טוען את תיק ההשקעות שלך...</p>
       </div>
     );
   }
 
   const { investments, exchangeRate } = portfolio;
 
-  // Calculate total portfolio value in ILS
   const totalValueILS = investments.reduce((total, investment) => {
     const valueInILS = investment.currency === "USD" 
       ? investment.amount * exchangeRate 
@@ -32,31 +32,43 @@ export function PortfolioTracker() {
   }, 0);
 
   return (
-    <div className="max-w-md mx-auto bg-gray-50 min-h-screen pb-24">
-      {/* Header Stat Card */}
-      <div className="px-4 pt-8 pb-10 bg-gradient-to-br from-blue-700 to-indigo-800 text-white rounded-b-[2.5rem] shadow-lg mb-6">
-        <div className="flex items-center justify-center gap-2 mb-2 opacity-90">
-          <Wallet size={18} />
-          <p className="text-sm font-medium uppercase tracking-wider">שווי תיק כולל</p>
-        </div>
-        <div className="text-center">
-          <p className="text-5xl font-extrabold tracking-tight">
-            <span className="text-3xl font-normal ml-1">₪</span>
+    <div className="max-w-md mx-auto bg-[#0A0A0B] min-h-screen pb-32">
+      {/* Premium Header Card */}
+      <div className="px-6 pt-12 pb-14 bg-zinc-900/50 border-b border-zinc-800 rounded-b-[3rem] shadow-2xl relative overflow-hidden mb-8">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-[#D4AF37]/10 rounded-full blur-3xl -mr-16 -mt-16"></div>
+        <div className="absolute bottom-0 left-0 w-32 h-32 bg-[#D4AF37]/5 rounded-full blur-3xl -ml-16 -mb-16"></div>
+        
+        <div className="relative z-10 text-center">
+          <div className="inline-flex items-center gap-2 mb-4 bg-zinc-800/50 px-4 py-1.5 rounded-full border border-zinc-700/50">
+            <Award size={14} className="text-[#D4AF37]" />
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#D4AF37]">Wealth Portfolio</p>
+          </div>
+          
+          <p className="text-sm font-medium text-zinc-500 mb-2">שווי התיק הכולל שלך</p>
+          <p className="text-6xl font-black text-white tracking-tighter">
+            <span className="text-2xl font-normal text-[#D4AF37] ml-2">₪</span>
             {totalValueILS.toLocaleString('he-IL', { 
               minimumFractionDigits: 0, 
               maximumFractionDigits: 0 
             })}
           </p>
-          <div className="mt-4 inline-flex items-center gap-2 bg-white/20 px-4 py-1.5 rounded-full text-sm backdrop-blur-md">
-            <TrendingUp size={16} />
-            <span>התיק שלך מעודכן</span>
+          
+          <div className="mt-8 flex justify-center gap-4">
+            <div className="bg-zinc-800/80 px-4 py-2 rounded-2xl border border-zinc-700/50">
+              <p className="text-[10px] text-zinc-500 uppercase font-bold">נכסים</p>
+              <p className="text-lg font-black text-white">{investments.length}</p>
+            </div>
+            <div className="bg-zinc-800/80 px-4 py-2 rounded-2xl border border-zinc-700/50">
+              <p className="text-[10px] text-zinc-500 uppercase font-bold">סטטוס</p>
+              <p className="text-lg font-black text-emerald-500">פעיל</p>
+            </div>
           </div>
         </div>
       </div>
 
       <div className="px-4 space-y-6">
         {/* Exchange Rate Section */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-[2rem] overflow-hidden shadow-xl">
           <ExchangeRateSection 
             exchangeRate={exchangeRate}
             lastUpdated={portfolio.lastUpdated}
@@ -64,36 +76,40 @@ export function PortfolioTracker() {
         </div>
 
         {/* Investments List */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-1">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-[2rem] p-1 shadow-xl">
           <InvestmentsList investments={investments} exchangeRate={exchangeRate} />
         </div>
 
         {/* Charts Section */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-[2rem] p-6 shadow-xl">
           <PortfolioCharts investments={investments} exchangeRate={exchangeRate} />
+        </div>
+
+        {/* Sign Out Section */}
+        <div className="pt-12 pb-12 flex justify-center">
+          <SignOutButton />
         </div>
       </div>
 
-      {/* Floating Add Button - Best for Mobile UX */}
-      <div className="fixed bottom-6 right-6 left-6 flex justify-center z-40 pointer-events-none">
+      {/* Luxury Floating Add Button */}
+      <div className="fixed bottom-8 right-0 left-0 flex justify-center z-40 px-6 pointer-events-none">
         <button
           onClick={() => setShowAddForm(true)}
-          className="pointer-events-auto bg-blue-600 hover:bg-blue-700 text-white shadow-2xl shadow-blue-500/50 flex items-center gap-3 px-8 py-4 rounded-full font-bold transition-all hover:scale-105 active:scale-95 group"
+          className="pointer-events-auto bg-gold-gradient text-black shadow-[0_10px_40px_-10px_rgba(212,175,55,0.4)] flex items-center gap-3 px-10 py-5 rounded-full font-black text-lg transition-all hover:scale-105 active:scale-95 group"
         >
-          <Plus size={24} className="group-hover:rotate-90 transition-transform duration-300" />
+          <Plus size={24} className="stroke-[3px]" />
           <span>הוסף השקעה חדשה</span>
         </button>
       </div>
 
-      {/* Add Investment Form Modal */}
+      {/* Modal Backdrop and Form */}
       {showAddForm && (
         <AddInvestmentForm 
           onClose={() => setShowAddForm(false)}
           onSuccess={() => {
             setShowAddForm(false);
-            toast.success("ההשקעה נוספה בהצלחה!", {
-              icon: "💰",
-              className: "bg-green-50 text-green-800 border-green-100"
+            toast.success("ההשקעה נוספה לפורטפוליו", {
+              className: "bg-zinc-900 text-white border-zinc-800"
             });
           }}
         />
