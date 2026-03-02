@@ -16,6 +16,7 @@ export default {
       spacing: {
         'section': '2rem',
         'container': '1rem',
+        'form-field': '1rem',
       },
       borderRadius: {
         'container': '0.75rem',
