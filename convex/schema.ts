@@ -14,12 +14,20 @@ const applicationTables = {
       v.literal("Long-Term"),
       v.literal("Short-Term")
     ),
+    excludeFromCalculator: v.optional(v.boolean()),
   }).index("by_user", ["userId"]),
   
   exchangeRates: defineTable({
     userId: v.id("users"),
     usdToIls: v.number(),
     lastUpdated: v.number(),
+  }).index("by_user", ["userId"]),
+
+  userSettings: defineTable({
+    userId: v.id("users"),
+    idealIsraelPercent: v.optional(v.number()),
+    abroadIdeals: v.optional(v.any()),
+    israelIdeals: v.optional(v.any()),
   }).index("by_user", ["userId"]),
 };
 

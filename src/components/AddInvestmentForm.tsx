@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { toast } from "sonner";
-import { X, DollarSign, Tag, Globe, History, Clock, MapPin, Award } from "lucide-react";
+import { X, DollarSign, Tag, Globe, History, Clock, MapPin, Award, Calculator } from "lucide-react";
 import type { Id } from "../../convex/_generated/dataModel";
 
 interface Investment {
@@ -11,6 +11,7 @@ interface Investment {
   amount: number;
   currency: "ILS" | "USD";
   category: "Israel" | "Abroad" | "Long-Term" | "Short-Term";
+  excludeFromCalculator?: boolean;
 }
 
 interface AddInvestmentFormProps {
@@ -24,12 +25,20 @@ export function AddInvestmentForm({ onClose, onSuccess, investment }: AddInvestm
   const [amount, setAmount] = useState(investment?.amount.toString() || "");
   const [currency, setCurrency] = useState<"ILS" | "USD">(investment?.currency || "ILS");
   const [category, setCategory] = useState<"Israel" | "Abroad" | "Long-Term" | "Short-Term">(investment?.category || "Israel");
+  const [excludeFromCalculator, setExcludeFromCalculator] = useState(investment?.excludeFromCalculator || false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const addInvestment = useMutation(api.investments.addInvestment);
   const updateInvestment = useMutation(api.investments.updateInvestment);
 
   const isEditing = !!investment;
+
+  // Reset exclusion when switching categories that don't support it
+  useEffect(() => {
+    if (category !== "Israel" && category !== "Abroad") {
+      setExcludeFromCalculator(false);
+    }
+  }, [category]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,6 +63,7 @@ export function AddInvestmentForm({ onClose, onSuccess, investment }: AddInvestm
           amount: amountNum,
           currency,
           category,
+          excludeFromCalculator,
         });
         toast.success("ההשקעה עודכנה בהצלחה");
       } else {
@@ -62,6 +72,7 @@ export function AddInvestmentForm({ onClose, onSuccess, investment }: AddInvestm
           amount: amountNum,
           currency,
           category,
+          excludeFromCalculator,
         });
         toast.success("ההשקעה נוספה לפורטפוליו");
       }
@@ -123,7 +134,8 @@ export function AddInvestmentForm({ onClose, onSuccess, investment }: AddInvestm
                 step="0.01"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                className="w-full px-6 py-5 bg-zinc-800/50 border-2 border-zinc-800 focus:border-[#D4AF37] rounded-3xl outline-none transition-all text-white font-black text-lg"
+                onWheel={(e) => (e.target as HTMLInputElement).blur()}
+                className="w-full px-6 py-5 bg-zinc-800/50 border-2 border-zinc-800 focus:border-[#D4AF37] rounded-3xl outline-none transition-all text-white font-black text-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 placeholder="0.00"
                 required
               />
@@ -171,6 +183,31 @@ export function AddInvestmentForm({ onClose, onSuccess, investment }: AddInvestm
               ))}
             </div>
           </div>
+
+          {(category === "Israel" || category === "Abroad") && (
+            <div className="flex items-center justify-between p-5 bg-zinc-800/30 border-2 border-zinc-800 rounded-3xl group hover:border-zinc-700 transition-all">
+              <div className="flex items-center gap-4">
+                <div className="bg-zinc-900 p-2.5 rounded-xl text-zinc-500 group-hover:text-[#D4AF37] transition-colors">
+                  <Calculator size={20} />
+                </div>
+                <div>
+                  <p className="text-white font-black text-sm">החרג ממחשבון</p>
+                  <p className="text-zinc-500 text-[10px] font-bold">לא יילקח בחשבון בחלוקת התיק</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setExcludeFromCalculator(!excludeFromCalculator)}
+                className={`w-12 h-6 rounded-full transition-all relative ${
+                  excludeFromCalculator ? 'bg-[#D4AF37]' : 'bg-zinc-700'
+                }`}
+              >
+                <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${
+                  excludeFromCalculator ? 'left-7 shadow-sm' : 'left-1'
+                }`} />
+              </button>
+            </div>
+          )}
 
           <div className="flex gap-4 pt-6">
             <button
