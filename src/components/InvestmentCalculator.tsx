@@ -1,116 +1,110 @@
 import { useState } from "react";
-import { Calculator, Globe, TrendingUp, Landmark } from "lucide-react";
+import { Calculator, Globe, TrendingUp, Landmark, LayoutGrid } from "lucide-react";
+import * as LucideIcons from "lucide-react";
+
+interface Category {
+  _id: string;
+  name: string;
+  includeInStrategy: boolean;
+  iconName: string;
+  color: string;
+  defaultCurrency: "ILS" | "USD";
+}
 
 interface InvestmentCalculatorProps {
   settings: {
-    idealIsraelPercent: number;
-    abroadIdeals?: Array<{ name: string; percent: number }>;
-    israelIdeals?: Array<{ name: string; percent: number }>;
+    strategyWeights?: Record<string, number>;
+    investmentWeights?: Record<string, Record<string, number>>;
   };
   investments: Array<{
     _id: string;
     name: string;
     category: string;
+    amount: number;
+    currency: "ILS" | "USD";
     excludeFromCalculator?: boolean;
   }>;
+  categories: Category[];
   exchangeRate: number;
 }
 
-export function InvestmentCalculator({ settings, investments, exchangeRate }: InvestmentCalculatorProps) {
+export function InvestmentCalculator({ settings, investments, categories, exchangeRate }: InvestmentCalculatorProps) {
   const [amount, setAmount] = useState<number | "">("");
-  const [mode, setMode] = useState<"global" | "abroad" | "israel">("global");
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | "global">("global");
 
-  const abroadAssets = investments.filter(inv => inv.category === "Abroad" && !inv.excludeFromCalculator);
-  const israelAssets = investments.filter(inv => inv.category === "Israel" && !inv.excludeFromCalculator);
-
+  const strategyCategories = categories.filter(c => c.includeInStrategy);
+  
   const calculateDistribution = () => {
     if (!amount || amount <= 0) return [];
 
-    // Helper to get current value in ILS
     const getILSValue = (inv: any) => inv.currency === "USD" ? inv.amount * exchangeRate : inv.amount;
     
-    // Normalize input amount to ILS for internal calculations
-    const amountInILS = mode === "abroad" ? (amount as number) * exchangeRate : (amount as number);
-
-    if (mode === "global") {
-      const currentIsraelTotal = israelAssets.reduce((sum, inv) => sum + getILSValue(inv), 0);
-      const currentAbroadTotal = abroadAssets.reduce((sum, inv) => sum + getILSValue(inv), 0);
-      const currentTotal = currentIsraelTotal + currentAbroadTotal;
+    // Global Mode: Distribute across all strategy-enabled categories
+    if (selectedCategoryId === "global") {
+      const amountInILS = amount as number;
       
+      // Calculate current totals per category
+      const categoryTotals = strategyCategories.reduce((acc, cat) => {
+        const catAssets = investments.filter(inv => inv.category === cat.name && !inv.excludeFromCalculator);
+        acc[cat.name] = catAssets.reduce((sum, inv) => sum + getILSValue(inv), 0);
+        return acc;
+      }, {} as Record<string, number>);
+
+      const currentTotal = Object.values(categoryTotals).reduce((a, b) => a + b, 0);
       const targetTotal = currentTotal + amountInILS;
-      const targetIsrael = (targetTotal * settings.idealIsraelPercent) / 100;
-      const targetAbroad = targetTotal - targetIsrael;
+      const weights = settings.strategyWeights || {};
 
-      // How much to add to each to reach target
-      let diffIsrael = Math.max(0, targetIsrael - currentIsraelTotal);
-      let diffAbroad = Math.max(0, targetAbroad - currentAbroadTotal);
-
-      // Normalize if the sum of differences doesn't match the input amount 
-      const totalDiff = diffIsrael + diffAbroad;
-      if (totalDiff > 0) {
-        diffIsrael = (diffIsrael / totalDiff) * amountInILS;
-        diffAbroad = (diffAbroad / totalDiff) * amountInILS;
-      }
-
-      return [
-        { label: "ישראל", amount: diffIsrael, percent: settings.idealIsraelPercent, color: "text-blue-400", currency: "₪" },
-        { label: "חו\"ל", amount: diffAbroad, percent: 100 - settings.idealIsraelPercent, color: "text-emerald-400", currency: "₪" },
-      ];
-    }
-
-    if (mode === "abroad") {
-      const currentTotalILS = abroadAssets.reduce((sum, inv) => sum + getILSValue(inv), 0);
-      const targetTotalILS = currentTotalILS + amountInILS;
-      
-      const results = abroadAssets.map(inv => {
-        const idealPercent = settings.abroadIdeals?.find(i => i.name === inv.name)?.percent || 0;
-        const currentValILS = getILSValue(inv);
-        const targetValILS = (targetTotalILS * idealPercent) / 100;
+      const results = strategyCategories.map(cat => {
+        const weight = weights[cat.name] || 0;
+        const targetVal = (targetTotal * weight) / 100;
+        const currentVal = categoryTotals[cat.name] || 0;
         return {
-          label: inv.name,
-          diff: Math.max(0, targetValILS - currentValILS),
-          percent: idealPercent
+          label: cat.name,
+          diff: Math.max(0, targetVal - currentVal),
+          percent: weight,
+          currency: "₪"
         };
       });
 
       const totalDiff = results.reduce((sum, r) => sum + r.diff, 0);
-      
       return results.map(res => ({
-        label: res.label,
-        amount: totalDiff > 0 ? (res.diff / totalDiff * amountInILS) / exchangeRate : 0,
-        percent: res.percent,
-        color: "text-[#D4AF37]",
-        currency: "$"
+        ...res,
+        amount: totalDiff > 0 ? (res.diff / totalDiff) * amountInILS : 0,
+        color: "text-[#D4AF37]"
       }));
     }
 
-    if (mode === "israel") {
-      const currentTotalILS = israelAssets.reduce((sum, inv) => sum + getILSValue(inv), 0);
-      const targetTotalILS = currentTotalILS + amountInILS;
-      
-      const results = israelAssets.map(inv => {
-        const idealPercent = settings.israelIdeals?.find(i => i.name === inv.name)?.percent || 0;
-        const currentValILS = getILSValue(inv);
-        const targetValILS = (targetTotalILS * idealPercent) / 100;
-        return {
-          label: inv.name,
-          diff: Math.max(0, targetValILS - currentValILS),
-          percent: idealPercent
-        };
-      });
+    // Category Mode: Distribute within a specific category
+    const category = categories.find(c => c._id === selectedCategoryId);
+    if (!category) return [];
 
-      const totalDiff = results.reduce((sum, r) => sum + r.diff, 0);
-      
-      return results.map(res => ({
-        label: res.label,
-        amount: totalDiff > 0 ? (res.diff / totalDiff * amountInILS) : 0,
-        percent: res.percent,
-        color: "text-[#D4AF37]",
-        currency: "₪"
-      }));
-    }
+    const isUSD = category.defaultCurrency === "USD";
+    const amountInILS = isUSD ? (amount as number) * exchangeRate : (amount as number);
+    
+    const catAssets = investments.filter(inv => inv.category === category.name && !inv.excludeFromCalculator);
+    const currentTotalILS = catAssets.reduce((sum, inv) => sum + getILSValue(inv), 0);
+    const targetTotalILS = currentTotalILS + amountInILS;
+    const weights = (settings.investmentWeights || {})[category.name] || {};
 
-    return [];
+    const results = catAssets.map(inv => {
+      const weight = weights[inv.name] || 0;
+      const targetValILS = (targetTotalILS * weight) / 100;
+      const currentValILS = getILSValue(inv);
+      return {
+        label: inv.name,
+        diff: Math.max(0, targetValILS - currentValILS),
+        percent: weight
+      };
+    });
+
+    const totalDiff = results.reduce((sum, r) => sum + r.diff, 0);
+    return results.map(res => ({
+      label: res.label,
+      amount: totalDiff > 0 ? (res.diff / totalDiff * amountInILS) / (isUSD ? exchangeRate : 1) : 0,
+      percent: res.percent,
+      color: "text-emerald-400",
+      currency: isUSD ? "$" : "₪"
+    }));
   };
 
   const results = calculateDistribution();
@@ -126,10 +120,40 @@ export function InvestmentCalculator({ settings, investments, exchangeRate }: In
         </div>
 
         <div className="space-y-6">
+          {/* Mode Selector - Dynamic */}
+          <div className="flex overflow-x-auto p-1 bg-zinc-800 rounded-2xl border border-zinc-700 no-scrollbar gap-1">
+            <button
+              onClick={() => setSelectedCategoryId("global")}
+              className={`flex-none flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-[10px] font-black uppercase tracking-tighter transition-all whitespace-nowrap ${
+                selectedCategoryId === "global" ? "bg-zinc-700 text-white shadow-lg" : "text-zinc-500"
+              }`}
+            >
+              <LayoutGrid size={14} />
+              גלובלי
+            </button>
+            {strategyCategories.map(cat => {
+              const Icon = (LucideIcons as any)[cat.iconName] || Globe;
+              return (
+                <button
+                  key={cat._id}
+                  onClick={() => setSelectedCategoryId(cat._id)}
+                  className={`flex-none flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-[10px] font-black uppercase tracking-tighter transition-all whitespace-nowrap ${
+                    selectedCategoryId === cat._id ? "bg-zinc-700 text-white shadow-lg" : "text-zinc-500"
+                  }`}
+                >
+                  <Icon size={14} />
+                  {cat.name}
+                </button>
+              );
+            })}
+          </div>
+
           {/* Amount Input */}
           <div>
             <label className="block text-zinc-500 text-xs font-black uppercase tracking-widest mb-3">
-              {mode === "abroad" ? "סכום להשקעה (בדוֹלרים)" : "סכום להשקעה (בשקלים)"}
+              {selectedCategoryId !== "global" && categories.find(c => c._id === selectedCategoryId)?.defaultCurrency === "USD" 
+                ? "סכום להשקעה (בדוֹלרים)" 
+                : "סכום להשקעה (בשקלים)"}
             </label>
             <div className="relative">
               <input
@@ -141,40 +165,9 @@ export function InvestmentCalculator({ settings, investments, exchangeRate }: In
                 className="w-full bg-zinc-800 border border-zinc-700 px-4 py-4 rounded-2xl text-white font-black text-2xl focus:border-[#D4AF37] outline-none transition-all pr-12 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
               />
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 font-bold text-xl">
-                {mode === "abroad" ? "$" : "₪"}
+                {selectedCategoryId !== "global" && categories.find(c => c._id === selectedCategoryId)?.defaultCurrency === "USD" ? "$" : "₪"}
               </span>
             </div>
-          </div>
-
-          {/* Mode Selector */}
-          <div className="flex p-1 bg-zinc-800 rounded-2xl border border-zinc-700">
-            <button
-              onClick={() => setMode("global")}
-              className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-xs font-black uppercase tracking-tighter transition-all ${
-                mode === "global" ? "bg-zinc-700 text-white shadow-lg" : "text-zinc-500"
-              }`}
-            >
-              <Landmark size={14} />
-              ישראל/חו"ל
-            </button>
-            <button
-              onClick={() => setMode("abroad")}
-              className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-xs font-black uppercase tracking-tighter transition-all ${
-                mode === "abroad" ? "bg-zinc-700 text-white shadow-lg" : "text-zinc-500"
-              }`}
-            >
-              <Globe size={14} />
-              תוך חו"ל
-            </button>
-            <button
-              onClick={() => setMode("israel")}
-              className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-xs font-black uppercase tracking-tighter transition-all ${
-                mode === "israel" ? "bg-zinc-700 text-white shadow-lg" : "text-zinc-500"
-              }`}
-            >
-              <TrendingUp size={14} />
-              תוך ישראל
-            </button>
           </div>
 
           {/* Results */}

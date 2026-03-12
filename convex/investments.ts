@@ -13,6 +13,13 @@ const ensureArray = (val: any) => {
   return [];
 };
 
+const DEFAULT_CATEGORIES = [
+  { name: "Israel", defaultCurrency: "ILS" as const, includeInStrategy: true, iconName: "TrendingUp", color: "blue" },
+  { name: "Abroad", defaultCurrency: "USD" as const, includeInStrategy: true, iconName: "Globe", color: "emerald" },
+  { name: "Long-Term", defaultCurrency: "ILS" as const, includeInStrategy: false, iconName: "History", color: "purple" },
+  { name: "Short-Term", defaultCurrency: "ILS" as const, includeInStrategy: false, iconName: "Clock", color: "orange" },
+];
+
 export const getPortfolio = query({
   args: {},
   handler: async (ctx) => {
@@ -23,6 +30,11 @@ export const getPortfolio = query({
 
     const investments = await ctx.db
       .query("investments")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+
+    const categories = await ctx.db
+      .query("categories")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
 
@@ -38,27 +50,109 @@ export const getPortfolio = query({
 
     return {
       investments,
+      categories,
       exchangeRate: exchangeRate?.usdToIls || 3.7, // Default rate
       lastUpdated: exchangeRate?.lastUpdated || Date.now(),
       settings: settings ? {
         ...settings,
+        strategyWeights: settings.strategyWeights || {},
+        investmentWeights: settings.investmentWeights || {},
         idealIsraelPercent: settings.idealIsraelPercent ?? 40,
         abroadIdeals: ensureArray(settings.abroadIdeals),
         israelIdeals: ensureArray(settings.israelIdeals),
+        customCharts: settings.customCharts || [],
       } : { 
+        strategyWeights: {},
+        investmentWeights: {},
         idealIsraelPercent: 40, 
         abroadIdeals: [], 
-        israelIdeals: [] 
+        israelIdeals: [],
+        customCharts: [],
       },
     };
   },
 });
 
+export const seedCategories = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const existing = await ctx.db
+      .query("categories")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+
+    if (existing.length === 0) {
+      for (const cat of DEFAULT_CATEGORIES) {
+        await ctx.db.insert("categories", {
+          userId,
+          ...cat,
+        });
+      }
+    }
+  }
+});
+
+export const addCategory = mutation({
+  args: {
+    name: v.string(),
+    defaultCurrency: v.union(v.literal("ILS"), v.literal("USD")),
+    includeInStrategy: v.boolean(),
+    iconName: v.string(),
+    color: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    await ctx.db.insert("categories", { userId, ...args });
+  },
+});
+
+export const updateCategory = mutation({
+  args: {
+    id: v.id("categories"),
+    name: v.string(),
+    defaultCurrency: v.union(v.literal("ILS"), v.literal("USD")),
+    includeInStrategy: v.boolean(),
+    iconName: v.string(),
+    color: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    const { id, ...updates } = args;
+    const existing = await ctx.db.get(id);
+    if (!existing || existing.userId !== userId) throw new Error("Not found");
+    await ctx.db.patch(id, updates);
+  },
+});
+
+export const deleteCategory = mutation({
+  args: { id: v.id("categories") },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    const existing = await ctx.db.get(args.id);
+    if (!existing || existing.userId !== userId) throw new Error("Not found");
+    await ctx.db.delete(args.id);
+  },
+});
+
 export const updateSettings = mutation({
   args: {
+    strategyWeights: v.optional(v.any()),
+    investmentWeights: v.optional(v.any()),
     idealIsraelPercent: v.optional(v.number()),
     abroadIdeals: v.optional(v.array(v.object({ name: v.string(), percent: v.number() }))),
     israelIdeals: v.optional(v.array(v.object({ name: v.string(), percent: v.number() }))),
+    customCharts: v.optional(v.array(v.object({
+      id: v.string(),
+      title: v.string(),
+      type: v.union(v.literal("categories"), v.literal("single-category")),
+      selectedCategories: v.array(v.string()),
+    }))),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -71,24 +165,25 @@ export const updateSettings = mutation({
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .first();
 
+    const updates: any = {};
+    if (args.strategyWeights !== undefined) updates.strategyWeights = args.strategyWeights;
+    if (args.investmentWeights !== undefined) updates.investmentWeights = args.investmentWeights;
+    if (args.idealIsraelPercent !== undefined) updates.idealIsraelPercent = args.idealIsraelPercent;
+    if (args.abroadIdeals !== undefined) updates.abroadIdeals = args.abroadIdeals;
+    if (args.israelIdeals !== undefined) updates.israelIdeals = args.israelIdeals;
+    if (args.customCharts !== undefined) updates.customCharts = args.customCharts;
+
     if (existing) {
-      const updates: any = {};
-      // Ensure existing data matches schema even if we don't update it explicitly
-      // This fixes cases where old data was stored as objects but schema now expects arrays
-      updates.abroadIdeals = ensureArray(existing.abroadIdeals);
-      updates.israelIdeals = ensureArray(existing.israelIdeals);
-      
-      if (args.idealIsraelPercent !== undefined) updates.idealIsraelPercent = args.idealIsraelPercent;
-      if (args.abroadIdeals !== undefined) updates.abroadIdeals = args.abroadIdeals;
-      if (args.israelIdeals !== undefined) updates.israelIdeals = args.israelIdeals;
-      
       await ctx.db.patch(existing._id, updates);
     } else {
       await ctx.db.insert("userSettings", {
         userId,
-        idealIsraelPercent: args.idealIsraelPercent ?? 40,
-        abroadIdeals: args.abroadIdeals ?? [],
-        israelIdeals: args.israelIdeals ?? [],
+        strategyWeights: updates.strategyWeights || {},
+        investmentWeights: updates.investmentWeights || {},
+        idealIsraelPercent: updates.idealIsraelPercent ?? 40,
+        abroadIdeals: updates.abroadIdeals ?? [],
+        israelIdeals: updates.israelIdeals ?? [],
+        customCharts: updates.customCharts ?? [],
       });
     }
   },
@@ -99,12 +194,7 @@ export const addInvestment = mutation({
     name: v.string(),
     amount: v.number(),
     currency: v.union(v.literal("ILS"), v.literal("USD")),
-    category: v.union(
-      v.literal("Israel"),
-      v.literal("Abroad"),
-      v.literal("Long-Term"),
-      v.literal("Short-Term")
-    ),
+    category: v.string(),
     excludeFromCalculator: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
@@ -130,12 +220,7 @@ export const updateInvestment = mutation({
     name: v.string(),
     amount: v.number(),
     currency: v.union(v.literal("ILS"), v.literal("USD")),
-    category: v.union(
-      v.literal("Israel"),
-      v.literal("Abroad"),
-      v.literal("Long-Term"),
-      v.literal("Short-Term")
-    ),
+    category: v.string(),
     excludeFromCalculator: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {

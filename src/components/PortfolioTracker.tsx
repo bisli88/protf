@@ -1,39 +1,83 @@
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { AddInvestmentForm } from "./AddInvestmentForm";
 import { ExchangeRateSection } from "./ExchangeRateSection";
-import { PortfolioCharts } from "./PortfolioCharts";
+import { PortfolioCharts, CustomChart } from "./PortfolioCharts";
 import { InvestmentsList } from "./InvestmentsList";
 import { SignOutButton } from "../SignOutButton";
 import { BottomNav } from "./BottomNav";
 import { InvestmentCalculator } from "./InvestmentCalculator";
-import { Plus, TrendingUp, Wallet, Award, Eye, EyeOff, User, Settings, Calculator } from "lucide-react";
+import { Plus, TrendingUp, Wallet, Award, Eye, EyeOff, User, Settings, Calculator, Globe, History, Clock, MapPin, Trash2, Edit2, Check, X, LayoutGrid } from "lucide-react";
 import type { Id } from "../../convex/_generated/dataModel";
+import * as LucideIcons from "lucide-react";
+
+interface Category {
+  _id: Id<"categories">;
+  name: string;
+  defaultCurrency: "ILS" | "USD";
+  includeInStrategy: boolean;
+  iconName: string;
+  color: string;
+}
 
 interface Investment {
   _id: Id<"investments">;
   name: string;
   amount: number;
   currency: "ILS" | "USD";
-  category: "Israel" | "Abroad" | "Long-Term" | "Short-Term";
+  category: string;
   excludeFromCalculator?: boolean;
 }
+
+const ICON_OPTIONS = ["TrendingUp", "Globe", "History", "Clock", "MapPin", "Wallet", "Briefcase", "Diamond", "Gem", "Coins"];
 
 export function PortfolioTracker() {
   const portfolio = useQuery(api.investments.getPortfolio);
   const updateSettings = useMutation(api.investments.updateSettings);
+  const addCategory = useMutation(api.investments.addCategory);
+  const updateCategory = useMutation(api.investments.updateCategory);
+  const deleteCategory = useMutation(api.investments.deleteCategory);
+  const seedCategories = useMutation(api.investments.seedCategories);
+
   const [showAddForm, setShowAddForm] = useState(false);
   const [showStrategyModal, setShowStrategyModal] = useState(false);
+  const [showChartSettings, setShowChartSettings] = useState(false);
+  const [isAddingCustomChart, setIsAddingCustomChart] = useState(false);
+  const [newChartTitle, setNewChartTitle] = useState("");
+  const [newChartCategories, setNewChartCategories] = useState<string[]>([]);
+  
   const [editingInvestment, setEditingInvestment] = useState<Investment | null>(null);
   const [isPrivate, setIsPrivate] = useState(false);
   const [activeView, setActiveView] = useState<"overview" | "list" | "extra" | "settings">("overview");
   
-  // Local state for smooth slider dragging
-  const [localIdealIsrael, setLocalIdealIsrael] = useState<number | null>(null);
-  const [localAbroadIdeals, setLocalAbroadIdeals] = useState<Record<string, number>>({});
-  const [localIsraelIdeals, setLocalIsraelIdeals] = useState<Record<string, number>>({});
+  // Category editing state
+  const [editingCategoryId, setEditingCategoryId] = useState<Id<"categories"> | null>(null);
+  const [categoryName, setCategoryName] = useState("");
+  const [categoryCurrency, setCategoryCurrency] = useState<"ILS" | "USD">("ILS");
+  const [categoryStrategy, setCategoryStrategy] = useState(true);
+  const [categoryIcon, setCategoryIcon] = useState("MapPin");
+  const [categoryColor, setCategoryColor] = useState("blue");
+  const [showAddCategory, setShowAddCategory] = useState(false);
+
+  // Local state for strategy management
+  const [localStrategyWeights, setLocalStrategyWeights] = useState<Record<string, number>>({});
+  const [localInvestmentWeights, setLocalInvestmentWeights] = useState<Record<string, Record<string, number>>>({});
+  const [localCustomCharts, setLocalCustomCharts] = useState<CustomChart[]>([]);
+
+  useEffect(() => {
+    if (portfolio?.settings) {
+      setLocalStrategyWeights(portfolio.settings.strategyWeights || {});
+      setLocalInvestmentWeights(portfolio.settings.investmentWeights || {});
+      setLocalCustomCharts(portfolio.settings.customCharts || []);
+    }
+    
+    // Seed categories if none exist
+    if (portfolio && portfolio.categories.length === 0) {
+      seedCategories();
+    }
+  }, [portfolio, seedCategories]);
 
   if (!portfolio) {
     return (
@@ -44,9 +88,8 @@ export function PortfolioTracker() {
     );
   }
 
-  const { investments, exchangeRate, settings } = portfolio;
-  const abroadInvestments = investments.filter(inv => inv.category === "Abroad" && !inv.excludeFromCalculator);
-  const israelInvestments = investments.filter(inv => inv.category === "Israel" && !inv.excludeFromCalculator);
+  const { investments, categories, exchangeRate, settings } = portfolio;
+  const strategyCategories = categories.filter(c => c.includeInStrategy);
 
   const totalValueILS = investments.reduce((total, investment) => {
     const valueInILS = investment.currency === "USD" 
@@ -65,66 +108,149 @@ export function PortfolioTracker() {
     setEditingInvestment(null);
   };
 
-  const handleUpdateIdealIsrael = async (percent: number) => {
+  const handleSaveCategory = async () => {
+    if (!categoryName.trim()) return toast.error("הזן שם לקטגוריה");
     try {
-      await updateSettings({ idealIsraelPercent: percent });
-      toast.success("הגדרות עודכנו");
+      if (editingCategoryId) {
+        await updateCategory({
+          id: editingCategoryId,
+          name: categoryName,
+          defaultCurrency: categoryCurrency,
+          includeInStrategy: categoryStrategy,
+          iconName: categoryIcon,
+          color: categoryColor
+        });
+        toast.success("קטגוריה עודכנה");
+      } else {
+        await addCategory({
+          name: categoryName,
+          defaultCurrency: categoryCurrency,
+          includeInStrategy: categoryStrategy,
+          iconName: categoryIcon,
+          color: categoryColor
+        });
+        toast.success("קטגוריה נוספה");
+      }
+      resetCategoryForm();
     } catch (e) {
-      toast.error("עדכון נכשל");
+      toast.error("שמירה נכשלה");
     }
   };
 
-  const handleUpdateAbroadIdeal = async (name: string, percent: number) => {
-    try {
-      const currentAbroadIdeals = Array.isArray(settings.abroadIdeals) ? [...settings.abroadIdeals] : [];
-      const index = currentAbroadIdeals.findIndex(item => item.name === name);
-      if (index > -1) {
-        currentAbroadIdeals[index] = { name, percent };
-      } else {
-        currentAbroadIdeals.push({ name, percent });
+  const resetCategoryForm = () => {
+    setEditingCategoryId(null);
+    setCategoryName("");
+    setCategoryCurrency("ILS");
+    setCategoryStrategy(true);
+    setCategoryIcon("MapPin");
+    setCategoryColor("blue");
+    setShowAddCategory(false);
+  };
+
+  const startEditCategory = (cat: Category) => {
+    setEditingCategoryId(cat._id);
+    setCategoryName(cat.name);
+    setCategoryCurrency(cat.defaultCurrency);
+    setCategoryStrategy(cat.includeInStrategy);
+    setCategoryIcon(cat.iconName);
+    setCategoryColor(cat.color);
+    setShowAddCategory(true);
+  };
+
+  const handleDeleteCategory = async (id: Id<"categories">) => {
+    if (confirm("האם למחוק קטגוריה זו? השקעות קיימות בקטגוריה זו לא יימחקו.")) {
+      try {
+        await deleteCategory({ id });
+        toast.success("קטגוריה נמחקה");
+      } catch (e) {
+        toast.error("מחיקה נכשלה");
       }
-      await updateSettings({ abroadIdeals: currentAbroadIdeals });
-      toast.success(`יעד עבור ${name} עודכן`);
-    } catch (e) {
-      toast.error("עדכון נכשל");
     }
   };
 
-  const handleUpdateIsraelIdeal = async (name: string, percent: number) => {
+  const saveStrategy = async () => {
     try {
-      const currentIsraelIdeals = Array.isArray(settings.israelIdeals) ? [...settings.israelIdeals] : [];
-      const index = currentIsraelIdeals.findIndex(item => item.name === name);
-      if (index > -1) {
-        currentIsraelIdeals[index] = { name, percent };
-      } else {
-        currentIsraelIdeals.push({ name, percent });
-      }
-      await updateSettings({ israelIdeals: currentIsraelIdeals });
-      toast.success(`יעד עבור ${name} עודכן`);
+      await updateSettings({
+        strategyWeights: localStrategyWeights,
+        investmentWeights: localInvestmentWeights
+      });
+      toast.success("אסטרטגיה נשמרה");
+      setShowStrategyModal(false);
     } catch (e) {
-      toast.error("עדכון נכשל");
+      toast.error("שמירה נכשלה");
     }
+  };
+
+  const saveChartSettings = async (charts: CustomChart[]) => {
+    try {
+      await updateSettings({
+        customCharts: charts
+      });
+      toast.success("הגדרות גרפים עודכנו");
+    } catch (e) {
+      toast.error("שמירה נכשלה");
+    }
+  };
+
+  const toggleChart = (chartId: string, title: string, type: "categories" | "single-category", selectedCategories: string[]) => {
+    const exists = localCustomCharts.find(c => c.id === chartId);
+    let newCharts: CustomChart[];
+    if (exists) {
+      newCharts = localCustomCharts.filter(c => c.id !== chartId);
+    } else {
+      newCharts = [...localCustomCharts, { id: chartId, title, type, selectedCategories }];
+    }
+    setLocalCustomCharts(newCharts);
+    saveChartSettings(newCharts);
+  };
+
+  const handleAddCustomChart = () => {
+    if (!newChartTitle.trim()) return toast.error("הזן שם לגרף");
+    if (newChartCategories.length === 0) return toast.error("בחר לפחות קטגוריה אחת");
+
+    const newChart: CustomChart = {
+      id: `custom_${Date.now()}`,
+      title: newChartTitle,
+      type: "categories",
+      selectedCategories: newChartCategories
+    };
+
+    const newCharts = [...localCustomCharts, newChart];
+    setLocalCustomCharts(newCharts);
+    saveChartSettings(newCharts);
+    
+    // Reset form
+    setNewChartTitle("");
+    setNewChartCategories([]);
+    setIsAddingCustomChart(false);
+  };
+
+  const deleteCustomChart = (id: string) => {
+    const newCharts = localCustomCharts.filter(c => c.id !== id);
+    setLocalCustomCharts(newCharts);
+    saveChartSettings(newCharts);
   };
 
   const renderView = () => {
-    // Defensive check: ensure ideals are arrays before rendering
-    const sanitizedAbroadIdeals = Array.isArray(settings?.abroadIdeals) ? settings.abroadIdeals : [];
-    const sanitizedIsraelIdeals = Array.isArray(settings?.israelIdeals) ? settings.israelIdeals : [];
-
     switch (activeView) {
       case "overview":
         return (
           <div className="space-y-6 animate-fade-in">
-            {/* Charts Section */}
-            <div className="bg-zinc-900 border border-zinc-800 rounded-[2rem] p-6 shadow-xl">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-[2rem] p-6 shadow-xl relative">
+              <button 
+                onClick={() => setShowChartSettings(true)}
+                className="absolute top-6 left-6 text-zinc-500 hover:text-[#D4AF37] transition-colors"
+              >
+                <LayoutGrid size={20} />
+              </button>
               <PortfolioCharts 
                 investments={investments} 
+                categories={categories}
                 exchangeRate={exchangeRate} 
                 isPrivate={isPrivate}
+                customCharts={localCustomCharts}
               />
             </div>
-
-            {/* Exchange Rate Section */}
             <div className="bg-zinc-900 border border-zinc-800 rounded-[2rem] overflow-hidden shadow-xl">
               <ExchangeRateSection 
                 exchangeRate={exchangeRate}
@@ -136,24 +262,21 @@ export function PortfolioTracker() {
       case "list":
         return (
           <div className="space-y-6 animate-fade-in">
-            {/* Investments List */}
             <div className="bg-zinc-900 border border-zinc-800 rounded-[2rem] p-1 shadow-xl">
               <InvestmentsList 
                 investments={investments} 
+                categories={categories}
                 exchangeRate={exchangeRate} 
                 onEdit={handleEdit}
                 isPrivate={isPrivate}
               />
             </div>
-
-            {/* Add Button Placeholder - actual button is floating */}
             <div className="h-24"></div>
           </div>
         );
       case "extra":
         return (
           <div className="space-y-6 animate-fade-in">
-            {/* Strategy Toggle Button */}
             <button
               onClick={() => setShowStrategyModal(true)}
               className="w-full bg-zinc-900 border border-zinc-800 rounded-[2rem] p-6 shadow-xl flex items-center justify-between group hover:border-[#D4AF37]/50 transition-all"
@@ -175,6 +298,7 @@ export function PortfolioTracker() {
             <InvestmentCalculator 
               settings={settings} 
               investments={investments} 
+              categories={categories}
               exchangeRate={exchangeRate}
             />
           </div>
@@ -182,7 +306,103 @@ export function PortfolioTracker() {
       case "settings":
         return (
           <div className="space-y-6 animate-fade-in">
-            {/* Account Settings */}
+            <div className="bg-zinc-900 border border-zinc-800 rounded-[2rem] p-6 shadow-xl">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="bg-[#D4AF37]/10 p-2 rounded-xl">
+                    <Settings size={20} className="text-[#D4AF37]" />
+                  </div>
+                  <h3 className="text-xl font-black text-white">ניהול קטגוריות</h3>
+                </div>
+                <button
+                  onClick={() => setShowAddCategory(true)}
+                  className="bg-[#D4AF37] text-black p-2 rounded-xl hover:scale-105 transition-all"
+                >
+                  <Plus size={20} />
+                </button>
+              </div>
+
+              {showAddCategory && (
+                <div className="bg-zinc-800/50 border border-zinc-700 rounded-2xl p-4 mb-6 space-y-4 animate-in slide-in-from-top">
+                  <input
+                    type="text"
+                    value={categoryName}
+                    onChange={(e) => setCategoryName(e.target.value)}
+                    placeholder="שם הקטגוריה"
+                    className="w-full bg-zinc-900 border border-zinc-700 px-4 py-3 rounded-xl text-white font-bold outline-none focus:border-[#D4AF37]"
+                  />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-zinc-500 uppercase">מטבע ברירת מחדל</label>
+                      <select
+                        value={categoryCurrency}
+                        onChange={(e) => setCategoryCurrency(e.target.value as any)}
+                        className="w-full bg-zinc-900 border border-zinc-700 px-4 py-3 rounded-xl text-white font-bold outline-none"
+                      >
+                        <option value="ILS">₪ ILS</option>
+                        <option value="USD">$ USD</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-zinc-500 uppercase">כלול באסטרטגיה</label>
+                      <button
+                        onClick={() => setCategoryStrategy(!categoryStrategy)}
+                        className={`w-full py-3 rounded-xl font-bold transition-all ${categoryStrategy ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50' : 'bg-zinc-800 text-zinc-500 border border-zinc-700'}`}
+                      >
+                        {categoryStrategy ? 'כלול' : 'מוחרג'}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-zinc-500 uppercase">אייקון</label>
+                    <div className="flex flex-wrap gap-2">
+                      {ICON_OPTIONS.map(icon => {
+                        const Icon = (LucideIcons as any)[icon];
+                        return (
+                          <button
+                            key={icon}
+                            onClick={() => setCategoryIcon(icon)}
+                            className={`p-2 rounded-lg border transition-all ${categoryIcon === icon ? 'bg-[#D4AF37] border-[#D4AF37] text-black' : 'bg-zinc-900 border-zinc-700 text-zinc-500 hover:border-zinc-500'}`}
+                          >
+                            <Icon size={16} />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div className="flex gap-2 pt-2">
+                    <button onClick={handleSaveCategory} className="flex-1 bg-[#D4AF37] text-black py-3 rounded-xl font-black">שמור</button>
+                    <button onClick={resetCategoryForm} className="px-4 bg-zinc-700 text-white py-3 rounded-xl font-black"><X size={20}/></button>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-3">
+                {categories.map(cat => {
+                  const Icon = (LucideIcons as any)[cat.iconName] || Globe;
+                  return (
+                    <div key={cat._id} className="flex items-center justify-between p-4 bg-zinc-800/30 border border-zinc-800 rounded-2xl group">
+                      <div className="flex items-center gap-3">
+                        <div className={`p-2 rounded-lg bg-zinc-800 text-${cat.color}-400`}>
+                          <Icon size={18} />
+                        </div>
+                        <div>
+                          <p className="text-white font-bold">{cat.name}</p>
+                          <p className="text-[9px] text-zinc-500 font-black uppercase">
+                            {cat.defaultCurrency} • {cat.includeInStrategy ? 'IN STRATEGY' : 'EXCLUDED'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => startEditCategory(cat)} className="p-2 text-zinc-400 hover:text-[#D4AF37]"><Edit2 size={16}/></button>
+                        <button onClick={() => handleDeleteCategory(cat._id)} className="p-2 text-zinc-400 hover:text-red-500"><Trash2 size={16}/></button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
             <div className="bg-zinc-900 border border-zinc-800 rounded-[2rem] p-8 shadow-xl">
               <div className="flex flex-col items-center gap-6">
                 <div className="bg-zinc-800 p-6 rounded-full border border-zinc-700">
@@ -192,14 +412,6 @@ export function PortfolioTracker() {
                   <h3 className="text-xl font-black text-white mb-2">הגדרות חשבון</h3>
                   <p className="text-zinc-500 text-sm">נהל את החשבון והעדפות האפליקציה</p>
                 </div>
-                
-                <div className="w-full space-y-4 pt-4 border-t border-zinc-800">
-                  <div className="flex items-center justify-between p-4 bg-zinc-800/30 rounded-2xl">
-                    <span className="text-zinc-300 font-medium">מטבע ברירת מחדל</span>
-                    <span className="text-[#D4AF37] font-black">₪ (ILS)</span>
-                  </div>
-                </div>
-
                 <div className="pt-8 w-full">
                   <SignOutButton />
                 </div>
@@ -214,74 +426,54 @@ export function PortfolioTracker() {
 
   return (
     <div className="max-w-md mx-auto bg-[#0A0A0B] min-h-screen pb-32">
-      {/* Premium Header Card */}
       <div className="px-6 pt-12 pb-14 bg-zinc-900/50 border-b border-zinc-800 rounded-b-[3rem] shadow-2xl relative overflow-hidden mb-8">
         <div className="absolute top-0 right-0 w-32 h-32 bg-[#D4AF37]/10 rounded-full blur-3xl -mr-16 -mt-16"></div>
         <div className="absolute bottom-0 left-0 w-32 h-32 bg-[#D4AF37]/5 rounded-full blur-3xl -ml-16 -mb-16"></div>
-        
         <div className="relative z-10 text-center">
           <div className="inline-flex items-center gap-2 mb-4 bg-zinc-800/50 px-4 py-1.5 rounded-full border border-zinc-700/50">
             <Award size={14} className="text-[#D4AF37]" />
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#D4AF37]">Wealth Portfolio</p>
           </div>
-          
           <div className="flex flex-col items-center justify-center">
             <p className="text-sm font-medium text-zinc-500 mb-2 flex items-center gap-2">
               שווי התיק הכולל שלך
-              <button 
-                onClick={() => setIsPrivate(!isPrivate)}
-                className="p-1.5 hover:bg-zinc-800 rounded-full transition-colors text-zinc-400 hover:text-[#D4AF37]"
-              >
+              <button onClick={() => setIsPrivate(!isPrivate)} className="p-1.5 hover:bg-zinc-800 rounded-full transition-colors text-zinc-400 hover:text-[#D4AF37]">
                 {isPrivate ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </p>
             <p className={`text-6xl font-black text-white tracking-tighter transition-all duration-500 ${isPrivate ? 'blur-xl' : ''}`}>
               <span className="text-2xl font-normal text-[#D4AF37] ml-2">₪</span>
-              {totalValueILS.toLocaleString('he-IL', { 
-                minimumFractionDigits: 0, 
-                maximumFractionDigits: 0 
-              })}
+              {totalValueILS.toLocaleString('he-IL', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
             </p>
           </div>
         </div>
       </div>
 
-      <div className="px-4">
-        {renderView()}
-      </div>
+      <div className="px-4">{renderView()}</div>
 
-      {/* Luxury Floating Add Button - Only show on list view */}
       {activeView === "list" && (
         <div className="fixed bottom-28 right-0 left-0 flex justify-center z-40 px-6 pointer-events-none animate-in fade-in zoom-in duration-300">
-          <button
-            onClick={() => setShowAddForm(true)}
-            className="pointer-events-auto bg-gold-gradient text-black shadow-[0_10px_40px_-10px_rgba(212,175,55,0.4)] flex items-center gap-3 px-10 py-5 rounded-full font-black text-lg transition-all hover:scale-105 active:scale-95 group"
-          >
+          <button onClick={() => setShowAddForm(true)} className="pointer-events-auto bg-gold-gradient text-black shadow-[0_10px_40px_-10px_rgba(212,175,55,0.4)] flex items-center gap-3 px-10 py-5 rounded-full font-black text-lg transition-all hover:scale-105 active:scale-95 group">
             <Plus size={24} className="stroke-[3px]" />
             <span>הוסף השקעה חדשה</span>
           </button>
         </div>
       )}
 
-      {/* Navigation */}
       <BottomNav activeView={activeView} onViewChange={setActiveView} />
 
-      {/* Modal Backdrop and Form */}
       {showAddForm && (
         <AddInvestmentForm 
           onClose={handleCloseForm}
           onSuccess={handleCloseForm}
           investment={editingInvestment || undefined}
+          categories={categories}
         />
       )}
 
-      {/* Strategy Settings Modal */}
       {showStrategyModal && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-300">
-          <div 
-            className="absolute inset-0 bg-black/80 backdrop-blur-sm" 
-            onClick={() => setShowStrategyModal(false)}
-          />
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowStrategyModal(false)}/>
           <div className="relative w-full max-w-lg bg-zinc-900 border-t sm:border border-zinc-800 rounded-t-[2.5rem] sm:rounded-[2.5rem] shadow-2xl overflow-hidden animate-in slide-in-from-bottom duration-500 max-h-[90vh] flex flex-col">
             <div className="p-6 border-b border-zinc-800 flex items-center justify-between bg-zinc-900/50 sticky top-0 z-10 backdrop-blur-md">
               <div className="flex items-center gap-3">
@@ -290,215 +482,217 @@ export function PortfolioTracker() {
                 </div>
                 <h3 className="text-xl font-black text-white">אסטרטגיית תיק</h3>
               </div>
-              <button 
-                onClick={() => setShowStrategyModal(false)}
-                className="p-2 hover:bg-zinc-800 rounded-full text-zinc-500 transition-colors"
-              >
+              <button onClick={() => setShowStrategyModal(false)} className="p-2 hover:bg-zinc-800 rounded-full text-zinc-500 transition-colors">
                 <Plus size={24} className="rotate-45" />
               </button>
             </div>
             
             <div className="p-6 overflow-y-auto space-y-8 pb-12">
-              {/* Category Sum Calculation */}
-              {(() => {
-                const abroadSum = abroadInvestments.reduce((sum, inv) => {
-                  return sum + (localAbroadIdeals[inv.name] ?? (Array.isArray(settings.abroadIdeals) ? settings.abroadIdeals.find(i => i.name === inv.name)?.percent || 0 : 0));
-                }, 0);
-                const israelSum = israelInvestments.reduce((sum, inv) => {
-                  return sum + (localIsraelIdeals[inv.name] ?? (Array.isArray(settings.israelIdeals) ? settings.israelIdeals.find(i => i.name === inv.name)?.percent || 0 : 0));
-                }, 0);
-                
-                const isAbroadValid = abroadInvestments.length === 0 || Math.abs(abroadSum - 100) < 0.1;
-                const isIsraelValid = israelInvestments.length === 0 || Math.abs(israelSum - 100) < 0.1;
-                const isValid = isAbroadValid && isIsraelValid;
+              {/* Global Strategy Weights */}
+              <div>
+                <div className="flex justify-between items-center mb-4">
+                  <label className="block text-zinc-500 text-xs font-black uppercase tracking-widest">חלוקת קטגוריות (סה"כ 100%)</label>
+                  <span className={`text-[10px] font-black ${Math.abs(Object.values(localStrategyWeights).reduce((a, b) => a + b, 0) - 100) < 0.1 ? 'text-emerald-500' : 'text-red-500'}`}>
+                    סה"כ: {Object.values(localStrategyWeights).reduce((a, b) => a + b, 0)}%
+                  </span>
+                </div>
+                <div className="space-y-3">
+                  {strategyCategories.map(cat => (
+                    <div key={cat._id} className="bg-zinc-800/30 p-4 rounded-2xl border border-zinc-800/50">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-white font-bold text-sm">{cat.name}</span>
+                        <div className="relative">
+                          <input 
+                            type="number"
+                            value={localStrategyWeights[cat.name] || 0}
+                            onChange={(e) => setLocalStrategyWeights(prev => ({ ...prev, [cat.name]: Number(e.target.value) }))}
+                            className="bg-zinc-900 border border-zinc-700 px-3 py-1.5 rounded-lg w-16 text-center text-[#D4AF37] font-black text-xs outline-none focus:border-[#D4AF37]"
+                          />
+                        </div>
+                      </div>
+                      <input 
+                        type="range" min="0" max="100" 
+                        value={localStrategyWeights[cat.name] || 0} 
+                        onChange={(e) => setLocalStrategyWeights(prev => ({ ...prev, [cat.name]: Number(e.target.value) }))}
+                        className="w-full accent-[#D4AF37]"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
 
-                const sanitizedAbroadIdeals = Array.isArray(settings?.abroadIdeals) ? settings.abroadIdeals : [];
-                const sanitizedIsraelIdeals = Array.isArray(settings?.israelIdeals) ? settings.israelIdeals : [];
+              {/* Investment Weights per Category */}
+              {strategyCategories.map(cat => {
+                const catInvestments = investments.filter(inv => inv.category === cat.name && !inv.excludeFromCalculator);
+                if (catInvestments.length === 0) return null;
+                const weights = localInvestmentWeights[cat.name] || {};
+                const sum = Object.values(weights).reduce((a, b) => a + b, 0);
 
                 return (
-                  <>
-                    <div>
-                      <label className="block text-zinc-500 text-xs font-black uppercase tracking-widest mb-4">חלוקה אידיאלית (ישראל vs חו"ל)</label>
-                      <div className="bg-zinc-800/30 p-6 rounded-[2rem] border border-zinc-800/50">
-                        <div className="flex items-center gap-4 mb-4">
-                          <input 
-                            type="range" 
-                            min="0" max="100" 
-                            value={100 - (localIdealIsrael ?? settings.idealIsraelPercent)} 
-                            onChange={(e) => setLocalIdealIsrael(100 - Number(e.target.value))}
-                            onMouseUp={() => localIdealIsrael !== null && handleUpdateIdealIsrael(localIdealIsrael)}
-                            onTouchEnd={() => localIdealIsrael !== null && handleUpdateIdealIsrael(localIdealIsrael)}
-                            className="flex-1 accent-[#D4AF37]"
-                          />
-                          <div className="relative">
+                  <div key={cat._id} className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <label className="block text-zinc-500 text-xs font-black uppercase tracking-widest">יעדים ל{cat.name} (סה"כ 100%)</label>
+                      <span className={`text-[10px] font-black ${Math.abs(sum - 100) < 0.1 ? 'text-emerald-500' : 'text-red-500'}`}>
+                        סה"כ: {sum}%
+                      </span>
+                    </div>
+                    <div className="space-y-3">
+                      {catInvestments.map(inv => (
+                        <div key={inv._id} className="bg-zinc-800/30 p-4 rounded-2xl border border-zinc-800/50">
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="text-zinc-300 font-bold text-xs">{inv.name}</span>
                             <input 
                               type="number"
-                              min="0" max="100"
-                              value={100 - (localIdealIsrael ?? settings.idealIsraelPercent)}
-                              onChange={(e) => {
-                                const val = Math.min(100, Math.max(0, Number(e.target.value)));
-                                setLocalIdealIsrael(100 - val);
-                              }}
-                              onBlur={() => localIdealIsrael !== null && handleUpdateIdealIsrael(localIdealIsrael)}
-                              className="bg-zinc-900 border border-zinc-700 px-3 py-2 rounded-xl w-20 text-center text-white font-bold focus:border-[#D4AF37] outline-none transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                              value={weights[inv.name] || 0}
+                              onChange={(e) => setLocalInvestmentWeights(prev => ({
+                                ...prev,
+                                [cat.name]: { ...(prev[cat.name] || {}), [inv.name]: Number(e.target.value) }
+                              }))}
+                              className="bg-zinc-900 border border-zinc-700 px-2 py-1 rounded-lg w-14 text-center text-emerald-400 font-black text-[10px] outline-none"
                             />
-                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-zinc-500 font-bold">%</span>
                           </div>
+                          <input 
+                            type="range" min="0" max="100" 
+                            value={weights[inv.name] || 0} 
+                            onChange={(e) => setLocalInvestmentWeights(prev => ({
+                              ...prev,
+                              [cat.name]: { ...(prev[cat.name] || {}), [inv.name]: Number(e.target.value) }
+                            }))}
+                            className="w-full accent-emerald-500"
+                          />
                         </div>
-                        <div className="flex justify-between text-[10px] font-black tracking-tighter">
-                          <div className="text-emerald-400">חו"ל ({100 - (localIdealIsrael ?? settings.idealIsraelPercent)}%)</div>
-                          <div className="text-blue-400">ישראל ({localIdealIsrael ?? settings.idealIsraelPercent}%)</div>
-                        </div>
-                      </div>
+                      ))}
                     </div>
-
-                    {abroadInvestments.length > 0 && (
-                      <div className="space-y-4">
-                        <div className="flex justify-between items-end px-2">
-                          <label className="block text-zinc-500 text-xs font-black uppercase tracking-widest">יעדים לנכסי חו"ל (מתוך סך חו"ל)</label>
-                          <span className={`text-[10px] font-black ${isAbroadValid ? 'text-emerald-500' : 'text-red-500'}`}>
-                            סה"כ: {abroadSum}%
-                          </span>
-                        </div>
-                        <div className="grid gap-3">
-                          {abroadInvestments.map(inv => {
-                            const idealValue = localAbroadIdeals[inv.name] ?? (sanitizedAbroadIdeals.find(i => i.name === inv.name)?.percent || 0);
-                            return (
-                              <div key={inv._id} className="bg-zinc-800/30 p-4 rounded-2xl border border-zinc-800/50">
-                                <div className="flex justify-between items-center mb-3">
-                                  <span className="text-zinc-300 font-bold text-sm">{inv.name}</span>
-                                  <div className="relative">
-                                    <input 
-                                      type="number"
-                                      min="0" max="100"
-                                      value={idealValue}
-                                      onChange={(e) => {
-                                        const val = Math.min(100, Math.max(0, Number(e.target.value)));
-                                        setLocalAbroadIdeals(prev => ({ ...prev, [inv.name]: val }));
-                                      }}
-                                      onBlur={() => localAbroadIdeals[inv.name] !== undefined && handleUpdateAbroadIdeal(inv.name, localAbroadIdeals[inv.name])}
-                                      className="bg-zinc-900 border border-zinc-700 px-3 py-1.5 rounded-lg w-16 text-center text-[#D4AF37] font-black text-xs focus:border-[#D4AF37] outline-none transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                    />
-                                    <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[8px] text-zinc-600 font-bold">%</span>
-                                  </div>
-                                </div>
-                                <input 
-                                  type="range" 
-                                  min="0" max="100" 
-                                  value={idealValue} 
-                                  onChange={(e) => setLocalAbroadIdeals(prev => ({ ...prev, [inv.name]: Number(e.target.value) }))}
-                                  onMouseUp={() => localAbroadIdeals[inv.name] !== undefined && handleUpdateAbroadIdeal(inv.name, localAbroadIdeals[inv.name])}
-                                  onTouchEnd={() => localAbroadIdeals[inv.name] !== undefined && handleUpdateAbroadIdeal(inv.name, localAbroadIdeals[inv.name])}
-                                  className="w-full accent-[#D4AF37]"
-                                />
-                              </div>
-                            );
-                          })}
-                          {!isAbroadValid && (
-                            <button 
-                              onClick={() => {
-                                const even = Math.floor(100 / abroadInvestments.length);
-                                const updates: Record<string, number> = {};
-                                abroadInvestments.forEach((inv, idx) => {
-                                  updates[inv.name] = idx === 0 ? 100 - (even * (abroadInvestments.length - 1)) : even;
-                                });
-                                setLocalAbroadIdeals(updates);
-                                // Trigger update for all
-                                Object.entries(updates).forEach(([name, val]) => handleUpdateAbroadIdeal(name, val));
-                              }}
-                              className="text-[10px] text-[#D4AF37] font-bold hover:underline text-right px-2"
-                            >
-                              חלק שווה בשווה ל-100%
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {israelInvestments.length > 0 && (
-                      <div className="space-y-4">
-                        <div className="flex justify-between items-end px-2">
-                          <label className="block text-zinc-500 text-xs font-black uppercase tracking-widest">יעדים לנכסי ישראל (מתוך סך ישראל)</label>
-                          <span className={`text-[10px] font-black ${isIsraelValid ? 'text-emerald-500' : 'text-red-500'}`}>
-                            סה"כ: {israelSum}%
-                          </span>
-                        </div>
-                        <div className="grid gap-3">
-                          {israelInvestments.map(inv => {
-                            const idealValue = localIsraelIdeals[inv.name] ?? (sanitizedIsraelIdeals.find(i => i.name === inv.name)?.percent || 0);
-                            return (
-                              <div key={inv._id} className="bg-zinc-800/30 p-4 rounded-2xl border border-zinc-800/50">
-                                <div className="flex justify-between items-center mb-3">
-                                  <span className="text-zinc-300 font-bold text-sm">{inv.name}</span>
-                                  <div className="relative">
-                                    <input 
-                                      type="number"
-                                      min="0" max="100"
-                                      value={idealValue}
-                                      onChange={(e) => {
-                                        const val = Math.min(100, Math.max(0, Number(e.target.value)));
-                                        setLocalIsraelIdeals(prev => ({ ...prev, [inv.name]: val }));
-                                      }}
-                                      onBlur={() => localIsraelIdeals[inv.name] !== undefined && handleUpdateIsraelIdeal(inv.name, localIsraelIdeals[inv.name])}
-                                      className="bg-zinc-900 border border-zinc-700 px-3 py-1.5 rounded-lg w-16 text-center text-[#D4AF37] font-black text-xs focus:border-[#D4AF37] outline-none transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                    />
-                                    <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[8px] text-zinc-600 font-bold">%</span>
-                                  </div>
-                                </div>
-                                <input 
-                                  type="range" 
-                                  min="0" max="100" 
-                                  value={idealValue} 
-                                  onChange={(e) => setLocalIsraelIdeals(prev => ({ ...prev, [inv.name]: Number(e.target.value) }))}
-                                  onMouseUp={() => localIsraelIdeals[inv.name] !== undefined && handleUpdateIsraelIdeal(inv.name, localIsraelIdeals[inv.name])}
-                                  onTouchEnd={() => localIsraelIdeals[inv.name] !== undefined && handleUpdateIsraelIdeal(inv.name, localIsraelIdeals[inv.name])}
-                                  className="w-full accent-[#D4AF37]"
-                                />
-                              </div>
-                            );
-                          })}
-                          {!isIsraelValid && (
-                            <button 
-                              onClick={() => {
-                                const even = Math.floor(100 / israelInvestments.length);
-                                const updates: Record<string, number> = {};
-                                israelInvestments.forEach((inv, idx) => {
-                                  updates[inv.name] = idx === 0 ? 100 - (even * (israelInvestments.length - 1)) : even;
-                                });
-                                setLocalIsraelIdeals(updates);
-                                // Trigger update for all
-                                Object.entries(updates).forEach(([name, val]) => handleUpdateIsraelIdeal(name, val));
-                              }}
-                              className="text-[10px] text-[#D4AF37] font-bold hover:underline text-right px-2"
-                            >
-                              חלק שווה בשווה ל-100%
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                    
-                    <div className="p-6 bg-zinc-900/80 backdrop-blur-md border-t border-zinc-800 mt-auto">
-                      {!isValid && (
-                        <p className="text-center text-red-500 text-[10px] font-bold mb-4 animate-pulse">
-                          שימו לב: סך האחוזים חייב להיות בדיוק 100% כדי לשמור
-                        </p>
-                      )}
-                      <button 
-                        onClick={() => isValid && setShowStrategyModal(false)}
-                        disabled={!isValid}
-                        className={`w-full font-black py-4 rounded-2xl transition-all shadow-lg ${
-                          isValid 
-                            ? 'bg-[#D4AF37] text-black hover:bg-[#B8962F] shadow-[#D4AF37]/20' 
-                            : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
-                        }`}
-                      >
-                        סגור ושמור
-                      </button>
-                    </div>
-                  </>
+                  </div>
                 );
-              })()}
+              })}
+            </div>
+            <div className="p-6 bg-zinc-900/80 backdrop-blur-md border-t border-zinc-800 mt-auto">
+              <button onClick={saveStrategy} className="w-full font-black py-4 rounded-2xl bg-[#D4AF37] text-black hover:bg-[#B8962F] transition-all shadow-lg shadow-[#D4AF37]/20">שמור אסטרטגיה</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showChartSettings && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-300">
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowChartSettings(false)}/>
+          <div className="relative w-full max-w-lg bg-zinc-900 border-t sm:border border-zinc-800 rounded-t-[2.5rem] sm:rounded-[2.5rem] shadow-2xl overflow-hidden animate-in slide-in-from-bottom duration-500 max-h-[90vh] flex flex-col">
+            <div className="p-6 border-b border-zinc-800 flex items-center justify-between bg-zinc-900/50 sticky top-0 z-10 backdrop-blur-md">
+              <div className="flex items-center gap-3">
+                <div className="bg-[#D4AF37]/10 p-2 rounded-xl">
+                  <LayoutGrid size={20} className="text-[#D4AF37]" />
+                </div>
+                <h3 className="text-xl font-black text-white">התאמת גרפים</h3>
+              </div>
+              <button 
+                onClick={() => setIsAddingCustomChart(!isAddingCustomChart)}
+                className={`p-2 rounded-xl transition-all ${isAddingCustomChart ? 'bg-red-500/20 text-red-500 rotate-45' : 'bg-[#D4AF37] text-black'}`}
+              >
+                <Plus size={20} />
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto space-y-6 pb-12">
+              {isAddingCustomChart && (
+                <div className="bg-zinc-800/50 border border-[#D4AF37]/30 rounded-3xl p-5 space-y-4 animate-in slide-in-from-top duration-300">
+                  <h4 className="text-white font-black text-sm mb-2">גרף מותאם אישית חדש</h4>
+                  <input
+                    type="text"
+                    value={newChartTitle}
+                    onChange={(e) => setNewChartTitle(e.target.value)}
+                    placeholder="שם הגרף (למשל: נדלן ומזומן)"
+                    className="w-full bg-zinc-900 border border-zinc-700 px-4 py-3 rounded-xl text-white font-bold outline-none focus:border-[#D4AF37]"
+                  />
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">בחר קטגוריות לשילוב:</label>
+                    <div className="flex flex-wrap gap-2">
+                      {categories.map(cat => (
+                        <button
+                          key={cat._id}
+                          onClick={() => {
+                            if (newChartCategories.includes(cat.name)) {
+                              setNewChartCategories(newChartCategories.filter(c => c !== cat.name));
+                            } else {
+                              setNewChartCategories([...newChartCategories, cat.name]);
+                            }
+                          }}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${newChartCategories.includes(cat.name) ? 'bg-[#D4AF37] border-[#D4AF37] text-black' : 'bg-zinc-900 border-zinc-800 text-zinc-500'}`}
+                        >
+                          {cat.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <button 
+                    onClick={handleAddCustomChart}
+                    className="w-full bg-[#D4AF37] text-black py-3 rounded-xl font-black text-sm mt-2"
+                  >
+                    צור גרף
+                  </button>
+                </div>
+              )}
+
+              <div className="space-y-4">
+                <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest">גרפים מובנים:</p>
+                
+                <button
+                  onClick={() => toggleChart("strategy", "הקצאת אסטרטגיה", "categories", strategyCategories.map(c => c.name))}
+                  className={`w-full p-4 rounded-2xl border transition-all flex items-center justify-between ${localCustomCharts.some(c => c.id === "strategy") ? 'bg-[#D4AF37]/10 border-[#D4AF37] text-[#D4AF37]' : 'bg-zinc-800/30 border-zinc-800 text-zinc-400'}`}
+                >
+                  <span className="font-bold">הקצאת אסטרטגיה</span>
+                  {localCustomCharts.some(c => c.id === "strategy") ? <Check size={20} /> : <div className="w-5 h-5 rounded-full border-2 border-zinc-700" />}
+                </button>
+
+                <button
+                  onClick={() => toggleChart("all_categories", "כלל התיק לפי קטגוריות", "categories", categories.map(c => c.name))}
+                  className={`w-full p-4 rounded-2xl border transition-all flex items-center justify-between ${localCustomCharts.some(c => c.id === "all_categories") ? 'bg-[#D4AF37]/10 border-[#D4AF37] text-[#D4AF37]' : 'bg-zinc-800/30 border-zinc-800 text-zinc-400'}`}
+                >
+                  <span className="font-bold">כלל התיק לפי קטגוריות</span>
+                  {localCustomCharts.some(c => c.id === "all_categories") ? <Check size={20} /> : <div className="w-5 h-5 rounded-full border-2 border-zinc-700" />}
+                </button>
+              </div>
+
+              {localCustomCharts.filter(c => c.id.startsWith("custom_")).length > 0 && (
+                <div className="space-y-4">
+                  <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest">גרפים מותאמים אישית:</p>
+                  <div className="space-y-3">
+                    {localCustomCharts.filter(c => c.id.startsWith("custom_")).map(chart => (
+                      <div key={chart.id} className="w-full p-4 rounded-2xl border border-[#D4AF37]/30 bg-[#D4AF37]/5 flex items-center justify-between text-[#D4AF37]">
+                        <div>
+                          <p className="font-bold">{chart.title}</p>
+                          <p className="text-[9px] opacity-70">{chart.selectedCategories.join(", ")}</p>
+                        </div>
+                        <button 
+                          onClick={() => deleteCustomChart(chart.id)}
+                          className="p-2 text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-4">
+                <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest">פירוט לפי קטגוריה:</p>
+                <div className="space-y-3">
+                  {categories.map(cat => (
+                    <button
+                      key={cat._id}
+                      onClick={() => toggleChart(`cat_${cat._id}`, `פירוט ${cat.name}`, "single-category", [cat.name])}
+                      className={`w-full p-4 rounded-2xl border transition-all flex items-center justify-between ${localCustomCharts.some(c => c.id === `cat_${cat._id}`) ? 'bg-[#D4AF37]/10 border-[#D4AF37] text-[#D4AF37]' : 'bg-zinc-800/30 border-zinc-800 text-zinc-400'}`}
+                    >
+                      <span className="font-bold">פירוט {cat.name}</span>
+                      {localCustomCharts.some(c => c.id === `cat_${cat._id}`) ? <Check size={20} /> : <div className="w-5 h-5 rounded-full border-2 border-zinc-700" />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="p-6 bg-zinc-900/80 backdrop-blur-md border-t border-zinc-800 mt-auto">
+              <button onClick={() => setShowChartSettings(false)} className="w-full font-black py-4 rounded-2xl bg-[#D4AF37] text-black hover:bg-[#B8962F] transition-all">סגור</button>
             </div>
           </div>
         </div>

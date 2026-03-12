@@ -4,13 +4,23 @@ import { api } from "../../convex/_generated/api";
 import { toast } from "sonner";
 import { X, DollarSign, Tag, Globe, History, Clock, MapPin, Award, Calculator } from "lucide-react";
 import type { Id } from "../../convex/_generated/dataModel";
+import * as LucideIcons from "lucide-react";
+
+interface Category {
+  _id: Id<"categories">;
+  name: string;
+  defaultCurrency: "ILS" | "USD";
+  includeInStrategy: boolean;
+  iconName: string;
+  color: string;
+}
 
 interface Investment {
   _id: Id<"investments">;
   name: string;
   amount: number;
   currency: "ILS" | "USD";
-  category: "Israel" | "Abroad" | "Long-Term" | "Short-Term";
+  category: string;
   excludeFromCalculator?: boolean;
 }
 
@@ -18,13 +28,14 @@ interface AddInvestmentFormProps {
   onClose: () => void;
   onSuccess: () => void;
   investment?: Investment; // Optional investment for editing
+  categories: Category[];
 }
 
-export function AddInvestmentForm({ onClose, onSuccess, investment }: AddInvestmentFormProps) {
+export function AddInvestmentForm({ onClose, onSuccess, investment, categories }: AddInvestmentFormProps) {
   const [name, setName] = useState(investment?.name || "");
   const [amount, setAmount] = useState(investment?.amount.toString() || "");
   const [currency, setCurrency] = useState<"ILS" | "USD">(investment?.currency || "ILS");
-  const [category, setCategory] = useState<"Israel" | "Abroad" | "Long-Term" | "Short-Term">(investment?.category || "Israel");
+  const [category, setCategory] = useState<string>(investment?.category || categories[0]?.name || "");
   const [excludeFromCalculator, setExcludeFromCalculator] = useState(investment?.excludeFromCalculator || false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -33,12 +44,18 @@ export function AddInvestmentForm({ onClose, onSuccess, investment }: AddInvestm
 
   const isEditing = !!investment;
 
-  // Reset exclusion when switching categories that don't support it
+  // Reset exclusion and auto-switch currency
   useEffect(() => {
-    if (category !== "Israel" && category !== "Abroad") {
-      setExcludeFromCalculator(false);
+    const selectedCat = categories.find(c => c.name === category);
+    if (selectedCat) {
+      if (!selectedCat.includeInStrategy) {
+        setExcludeFromCalculator(false);
+      }
+      
+      // Auto-switch currency based on category default
+      setCurrency(selectedCat.defaultCurrency);
     }
-  }, [category]);
+  }, [category, categories]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -161,30 +178,28 @@ export function AddInvestmentForm({ onClose, onSuccess, investment }: AddInvestm
               קטגוריית השקעה
             </label>
             <div className="grid grid-cols-2 gap-3">
-              {[
-                { id: 'Israel', label: 'ישראל', icon: MapPin, color: 'blue' },
-                { id: 'Abroad', label: 'חו"ל', icon: Globe, color: 'emerald' },
-                { id: 'Long-Term', label: 'טווח ארוך', icon: History, color: 'purple' },
-                { id: 'Short-Term', label: 'טווח קצר', icon: Clock, color: 'orange' }
-              ].map((cat) => (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => setCategory(cat.id as any)}
-                  className={`flex items-center gap-3 p-4 rounded-2xl border-2 transition-all font-black text-xs ${
-                    category === cat.id 
-                      ? `bg-zinc-800 border-[#D4AF37] text-white` 
-                      : 'bg-zinc-800/30 border-zinc-800 text-zinc-500 hover:bg-zinc-800/50'
-                  }`}
-                >
-                  <cat.icon size={16} className={category === cat.id ? 'text-[#D4AF37]' : ''} />
-                  {cat.label}
-                </button>
-              ))}
+              {categories.map((cat) => {
+                const Icon = (LucideIcons as any)[cat.iconName] || Globe;
+                return (
+                  <button
+                    key={cat._id}
+                    type="button"
+                    onClick={() => setCategory(cat.name)}
+                    className={`flex items-center gap-3 p-4 rounded-2xl border-2 transition-all font-black text-xs ${
+                      category === cat.name 
+                        ? `bg-zinc-800 border-[#D4AF37] text-white` 
+                        : 'bg-zinc-800/30 border-zinc-800 text-zinc-500 hover:bg-zinc-800/50'
+                    }`}
+                  >
+                    <Icon size={16} className={category === cat.name ? `text-${cat.color}-400` : ''} />
+                    {cat.name}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          {(category === "Israel" || category === "Abroad") && (
+          {categories.find(c => c.name === category)?.includeInStrategy && (
             <div className="flex items-center justify-between p-5 bg-zinc-800/30 border-2 border-zinc-800 rounded-3xl group hover:border-zinc-700 transition-all">
               <div className="flex items-center gap-4">
                 <div className="bg-zinc-900 p-2.5 rounded-xl text-zinc-500 group-hover:text-[#D4AF37] transition-colors">

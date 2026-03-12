@@ -4,42 +4,36 @@ import { toast } from "sonner";
 import { useState } from "react";
 import type { Id } from "../../convex/_generated/dataModel";
 import { Trash2, TrendingUp, Globe, Clock, History, Briefcase, Diamond, Edit3, LayoutGrid } from "lucide-react";
+import * as LucideIcons from "lucide-react";
+
+interface Category {
+  _id: Id<"categories">;
+  name: string;
+  defaultCurrency: "ILS" | "USD";
+  includeInStrategy: boolean;
+  iconName: string;
+  color: string;
+}
 
 interface Investment {
   _id: Id<"investments">;
   name: string;
   amount: number;
   currency: "ILS" | "USD";
-  category: "Israel" | "Abroad" | "Long-Term" | "Short-Term";
+  category: string;
 }
 
 interface InvestmentsListProps {
   investments: Investment[];
+  categories: Category[];
   exchangeRate: number;
   onEdit: (investment: Investment) => void;
   isPrivate: boolean;
 }
 
-type FilterCategory = "All" | "Israel" | "Abroad" | "Long-Term" | "Short-Term";
-
-export function InvestmentsList({ investments, exchangeRate, onEdit, isPrivate }: InvestmentsListProps) {
+export function InvestmentsList({ investments, categories, exchangeRate, onEdit, isPrivate }: InvestmentsListProps) {
   const deleteInvestment = useMutation(api.investments.deleteInvestment);
-  const [selectedTab, setSelectedTab] = useState<FilterCategory>("All");
-
-  const categoryMap: Record<string, { label: string; icon: any; color: string }> = {
-    "Israel": { label: "ישראל", icon: TrendingUp, color: "bg-blue-500/10 text-blue-400" },
-    "Abroad": { label: "חו\"ל", icon: Globe, color: "bg-emerald-500/10 text-emerald-400" },
-    "Long-Term": { label: "טווח ארוך", icon: History, color: "bg-purple-500/10 text-purple-400" },
-    "Short-Term": { label: "טווח קצר", icon: Clock, color: "bg-orange-500/10 text-orange-400" }
-  };
-
-  const tabs: { id: FilterCategory; label: string; icon: any }[] = [
-    { id: "All", label: "הכל", icon: LayoutGrid },
-    { id: "Israel", label: "ישראל", icon: TrendingUp },
-    { id: "Abroad", label: "חו\"ל", icon: Globe },
-    { id: "Long-Term", label: "טווח ארוך", icon: History },
-    { id: "Short-Term", label: "טווח קצר", icon: Clock },
-  ];
+  const [selectedTab, setSelectedTab] = useState<string>("All");
 
   const filteredInvestments = selectedTab === "All" 
     ? investments 
@@ -81,13 +75,24 @@ export function InvestmentsList({ investments, exchangeRate, onEdit, isPrivate }
 
       {/* Categories Tabs */}
       <div className="flex overflow-x-auto pb-4 mb-6 -mx-4 px-4 gap-2 no-scrollbar">
-        {tabs.map((tab) => {
-          const Icon = tab.icon;
-          const isActive = selectedTab === tab.id;
+        <button
+          onClick={() => setSelectedTab("All")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl border whitespace-nowrap transition-all duration-300 font-bold text-sm ${
+            selectedTab === "All" 
+              ? "bg-[#D4AF37] border-[#D4AF37] text-black shadow-[0_4px_12px_-2px_rgba(212,175,55,0.3)]" 
+              : "bg-zinc-800/50 border-zinc-700/50 text-zinc-400 hover:border-zinc-600"
+          }`}
+        >
+          <LayoutGrid size={14} className={selectedTab === "All" ? "text-black" : "text-zinc-500"} />
+          הכל
+        </button>
+        {categories.map((tab) => {
+          const Icon = (LucideIcons as any)[tab.iconName] || Globe;
+          const isActive = selectedTab === tab.name;
           return (
             <button
-              key={tab.id}
-              onClick={() => setSelectedTab(tab.id)}
+              key={tab._id}
+              onClick={() => setSelectedTab(tab.name)}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl border whitespace-nowrap transition-all duration-300 font-bold text-sm ${
                 isActive 
                   ? "bg-[#D4AF37] border-[#D4AF37] text-black shadow-[0_4px_12px_-2px_rgba(212,175,55,0.3)]" 
@@ -95,7 +100,7 @@ export function InvestmentsList({ investments, exchangeRate, onEdit, isPrivate }
               }`}
             >
               <Icon size={14} className={isActive ? "text-black" : "text-zinc-500"} />
-              {tab.label}
+              {tab.name}
             </button>
           );
         })}
@@ -112,8 +117,8 @@ export function InvestmentsList({ investments, exchangeRate, onEdit, isPrivate }
               ? investment.amount * exchangeRate 
               : investment.amount;
             
-            const cat = categoryMap[investment.category];
-            const Icon = cat?.icon || Briefcase;
+            const cat = categories.find(c => c.name === investment.category);
+            const Icon = cat ? (LucideIcons as any)[cat.iconName] : Briefcase;
 
             return (
               <div
@@ -122,13 +127,13 @@ export function InvestmentsList({ investments, exchangeRate, onEdit, isPrivate }
               >
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-1">
-                    <div className={`p-1.5 rounded-xl ${cat?.color || "bg-zinc-800 text-zinc-400"}`}>
+                    <div className={`p-1.5 rounded-xl ${cat ? `bg-${cat.color}-500/10 text-${cat.color}-400` : "bg-zinc-800 text-zinc-400"}`}>
                       <Icon size={16} />
                     </div>
                     <div>
                       <h4 className="font-bold text-white text-base leading-tight">{investment.name}</h4>
                       <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500">
-                        {cat?.label || investment.category}
+                        {investment.category}
                       </span>
                     </div>
                   </div>
