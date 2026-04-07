@@ -11,6 +11,7 @@ interface Investment {
   amount: number;
   currency: "ILS" | "USD";
   category: string;
+  excludeFromCalculator?: boolean;
 }
 
 export interface CustomChart {
@@ -30,7 +31,9 @@ interface PortfolioChartsProps {
 
 export function PortfolioCharts({ investments, categories, exchangeRate, isPrivate, customCharts }: PortfolioChartsProps) {
   // Convert all amounts to ILS for calculations
-  const investmentsInILS = investments.map(inv => ({
+  const investmentsInILS = investments
+  .filter(inv => !inv.excludeFromCalculator)
+  .map(inv => ({
     ...inv,
     amountILS: inv.currency === "USD" ? inv.amount * exchangeRate : inv.amount,
   }));

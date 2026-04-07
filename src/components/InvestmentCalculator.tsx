@@ -37,6 +37,14 @@ export function InvestmentCalculator({ settings, investments, categories, exchan
   const calculateDistribution = () => {
     if (!amount || amount <= 0) return [];
 
+    const normalizeWeights = (raw: any): Record<string, number> => {
+      if (!raw) return {};
+      if (Array.isArray(raw)) {
+        return Object.fromEntries(raw.map((w: any) => [w.name, w.percent]));
+      }
+      return raw;
+    };
+
     const getILSValue = (inv: any) => inv.currency === "USD" ? inv.amount * exchangeRate : inv.amount;
     
     // Global Mode: Distribute across all strategy-enabled categories
@@ -52,7 +60,7 @@ export function InvestmentCalculator({ settings, investments, categories, exchan
 
       const currentTotal = Object.values(categoryTotals).reduce((a, b) => a + b, 0);
       const targetTotal = currentTotal + amountInILS;
-      const weights = settings.strategyWeights || {};
+      const weights = normalizeWeights(settings.strategyWeights);
 
       const results = strategyCategories.map(cat => {
         const weight = weights[cat.name] || 0;
@@ -84,7 +92,8 @@ export function InvestmentCalculator({ settings, investments, categories, exchan
     const catAssets = investments.filter(inv => inv.category === category.name && !inv.excludeFromCalculator);
     const currentTotalILS = catAssets.reduce((sum, inv) => sum + getILSValue(inv), 0);
     const targetTotalILS = currentTotalILS + amountInILS;
-    const weights = (settings.investmentWeights || {})[category.name] || {};
+    const rawCatWeights = (settings.investmentWeights as any)?.[category.name];
+    const weights = normalizeWeights(rawCatWeights);
 
     const results = catAssets.map(inv => {
       const weight = weights[inv.name] || 0;

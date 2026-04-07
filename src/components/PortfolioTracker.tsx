@@ -65,11 +65,33 @@ export function PortfolioTracker() {
   const [localStrategyWeights, setLocalStrategyWeights] = useState<Record<string, number>>({});
   const [localInvestmentWeights, setLocalInvestmentWeights] = useState<Record<string, Record<string, number>>>({});
   const [localCustomCharts, setLocalCustomCharts] = useState<CustomChart[]>([]);
+  const [strategyTab, setStrategyTab] = useState<"categories" | "detail">("categories");
+  const [selectedDetailCat, setSelectedDetailCat] = useState<string>("");
 
   useEffect(() => {
     if (portfolio?.settings) {
-      setLocalStrategyWeights(portfolio.settings.strategyWeights || {});
-      setLocalInvestmentWeights(portfolio.settings.investmentWeights || {});
+      // Convert array back to object for UI (handles Hebrew keys stored as arrays)
+      const weights = Array.isArray(portfolio.settings.strategyWeights)
+        ? Object.fromEntries(
+            portfolio.settings.strategyWeights.map((w: any) => [w.name, w.percent])
+          )
+        : portfolio.settings.strategyWeights || {};
+
+      setLocalStrategyWeights(weights);
+
+      const invWeights = portfolio.settings.investmentWeights || {};
+      const normalizedInvWeights: Record<string, Record<string, number>> = {};
+      Object.entries(invWeights).forEach(([cat, arr]) => {
+        if (Array.isArray(arr)) {
+          normalizedInvWeights[cat] = Object.fromEntries(
+            (arr as any[]).map((w) => [w.name, w.percent])
+          );
+        } else {
+          normalizedInvWeights[cat] = arr as Record<string, number>;
+        }
+      });
+
+      setLocalInvestmentWeights(normalizedInvWeights);
       setLocalCustomCharts(portfolio.settings.customCharts || []);
     }
     
@@ -170,13 +192,26 @@ export function PortfolioTracker() {
 
   const saveStrategy = async () => {
     try {
+      // Convert object with Hebrew keys to arrays to avoid Convex field name restriction
+      const strategyWeightsArray = Object.entries(localStrategyWeights).map(
+        ([name, percent]) => ({ name, percent: Number(percent) })
+      );
+
+      const investmentWeightsArray: Record<string, { name: string; percent: number }[]> = {};
+      Object.entries(localInvestmentWeights).forEach(([catName, weights]) => {
+        investmentWeightsArray[catName] = Object.entries(weights).map(
+          ([name, percent]) => ({ name, percent: Number(percent) })
+        );
+      });
+
       await updateSettings({
-        strategyWeights: localStrategyWeights,
-        investmentWeights: localInvestmentWeights
+        strategyWeights: strategyWeightsArray,
+        investmentWeights: investmentWeightsArray,
       });
       toast.success("אסטרטגיה נשמרה");
       setShowStrategyModal(false);
     } catch (e) {
+      console.error("Strategy save error:", e);
       toast.error("שמירה נכשלה");
     }
   };
@@ -453,8 +488,8 @@ export function PortfolioTracker() {
 
       {activeView === "list" && (
         <div className="fixed bottom-28 right-0 left-0 flex justify-center z-40 px-6 pointer-events-none animate-in fade-in zoom-in duration-300">
-          <button onClick={() => setShowAddForm(true)} className="pointer-events-auto bg-gold-gradient text-black shadow-[0_10px_40px_-10px_rgba(212,175,55,0.4)] flex items-center gap-3 px-10 py-5 rounded-full font-black text-lg transition-all hover:scale-105 active:scale-95 group">
-            <Plus size={24} className="stroke-[3px]" />
+          <button onClick={() => setShowAddForm(true)} className="pointer-events-auto bg-gold-gradient text-black shadow-[0_10px_40px_-10px_rgba(212,175,55,0.4)] flex items-center gap-2 px-6 py-3 rounded-full font-black text-sm transition-all hover:scale-105 active:scale-95 group">
+            <Plus size={18} className="stroke-[3px]" />
             <span>הוסף השקעה חדשה</span>
           </button>
         </div>
@@ -475,6 +510,8 @@ export function PortfolioTracker() {
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-300">
           <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowStrategyModal(false)}/>
           <div className="relative w-full max-w-lg bg-zinc-900 border-t sm:border border-zinc-800 rounded-t-[2.5rem] sm:rounded-[2.5rem] shadow-2xl overflow-hidden animate-in slide-in-from-bottom duration-500 max-h-[90vh] flex flex-col">
+
+            {/* Header */}
             <div className="p-6 border-b border-zinc-800 flex items-center justify-between bg-zinc-900/50 sticky top-0 z-10 backdrop-blur-md">
               <div className="flex items-center gap-3">
                 <div className="bg-[#D4AF37]/10 p-2 rounded-xl">
@@ -486,89 +523,276 @@ export function PortfolioTracker() {
                 <Plus size={24} className="rotate-45" />
               </button>
             </div>
-            
-            <div className="p-6 overflow-y-auto space-y-8 pb-12">
-              {/* Global Strategy Weights */}
-              <div>
-                <div className="flex justify-between items-center mb-4">
-                  <label className="block text-zinc-500 text-xs font-black uppercase tracking-widest">חלוקת קטגוריות (סה"כ 100%)</label>
-                  <span className={`text-[10px] font-black ${Math.abs(Object.values(localStrategyWeights).reduce((a, b) => a + b, 0) - 100) < 0.1 ? 'text-emerald-500' : 'text-red-500'}`}>
-                    סה"כ: {Object.values(localStrategyWeights).reduce((a, b) => a + b, 0)}%
-                  </span>
-                </div>
-                <div className="space-y-3">
-                  {strategyCategories.map(cat => (
-                    <div key={cat._id} className="bg-zinc-800/30 p-4 rounded-2xl border border-zinc-800/50">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-white font-bold text-sm">{cat.name}</span>
-                        <div className="relative">
-                          <input 
-                            type="number"
-                            value={localStrategyWeights[cat.name] || 0}
-                            onChange={(e) => setLocalStrategyWeights(prev => ({ ...prev, [cat.name]: Number(e.target.value) }))}
-                            className="bg-zinc-900 border border-zinc-700 px-3 py-1.5 rounded-lg w-16 text-center text-[#D4AF37] font-black text-xs outline-none focus:border-[#D4AF37]"
-                          />
-                        </div>
+
+            {/* Tabs */}
+            <div className="px-6 pt-4 pb-0 flex gap-2">
+              <button
+                onClick={() => setStrategyTab("categories")}
+                className={`flex-1 py-2.5 rounded-xl text-sm font-black transition-all ${strategyTab === "categories" ? "bg-[#D4AF37] text-black" : "bg-zinc-800 text-zinc-500 hover:text-zinc-300"}`}
+              >
+                חלוקת קטגוריות
+              </button>
+              <button
+                onClick={() => {
+                  setStrategyTab("detail");
+                  if (!selectedDetailCat && strategyCategories.length > 0) {
+                    setSelectedDetailCat(strategyCategories[0].name);
+                  }
+                }}
+                className={`flex-1 py-2.5 rounded-xl text-sm font-black transition-all ${strategyTab === "detail" ? "bg-[#D4AF37] text-black" : "bg-zinc-800 text-zinc-500 hover:text-zinc-300"}`}
+              >
+                פירוט קטגוריה
+              </button>
+            </div>
+
+            {/* Tab Content */}
+            <div className="p-6 overflow-y-auto pb-12 flex-1">
+
+              {/* ── TAB 1: Category weights ── */}
+              {strategyTab === "categories" && (
+                <div className="space-y-5 animate-in fade-in duration-200">
+
+                  {/* Live Pie */}
+                  <div className="flex justify-center">
+                    <div className="relative w-36 h-36">
+                      <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
+                        {(() => {
+                          const total = strategyCategories.reduce((a, cat) => a + (localStrategyWeights[cat.name] || 0), 0);
+                          let offset = 0;
+                          const colors = ["#D4AF37","#10b981","#6366f1","#f97316","#ec4899","#06b6d4","#8b5cf6"];
+                          return strategyCategories.map((cat, i) => {
+                            const pct = total > 0 ? ((localStrategyWeights[cat.name] || 0) / total) * 100 : 0;
+                            const el = (
+                              <circle
+                                key={cat._id}
+                                cx="18" cy="18" r="15.9"
+                                fill="transparent"
+                                stroke={colors[i % colors.length]}
+                                strokeWidth="3.2"
+                                strokeDasharray={`${pct} ${100 - pct}`}
+                                strokeDashoffset={-offset}
+                              />
+                            );
+                            offset += pct;
+                            return el;
+                          });
+                        })()}
+                      </svg>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        {(() => {
+                          const total = strategyCategories.reduce((a, cat) => a + (localStrategyWeights[cat.name] || 0), 0);
+                          const isValid = Math.abs(total - 100) < 0.1;
+                          return (
+                            <>
+                              <span className={`text-xl font-black ${isValid ? 'text-emerald-400' : 'text-red-400'}`}>{Math.round(total)}%</span>
+                              <span className="text-[9px] text-zinc-500 font-bold">{isValid ? '✓ מאוזן' : 'חסר'}</span>
+                            </>
+                          );
+                        })()}
                       </div>
-                      <input 
-                        type="range" min="0" max="100" 
-                        value={localStrategyWeights[cat.name] || 0} 
-                        onChange={(e) => setLocalStrategyWeights(prev => ({ ...prev, [cat.name]: Number(e.target.value) }))}
-                        className="w-full accent-[#D4AF37]"
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Investment Weights per Category */}
-              {strategyCategories.map(cat => {
-                const catInvestments = investments.filter(inv => inv.category === cat.name && !inv.excludeFromCalculator);
-                if (catInvestments.length === 0) return null;
-                const weights = localInvestmentWeights[cat.name] || {};
-                const sum = Object.values(weights).reduce((a, b) => a + b, 0);
-
-                return (
-                  <div key={cat._id} className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <label className="block text-zinc-500 text-xs font-black uppercase tracking-widest">יעדים ל{cat.name} (סה"כ 100%)</label>
-                      <span className={`text-[10px] font-black ${Math.abs(sum - 100) < 0.1 ? 'text-emerald-500' : 'text-red-500'}`}>
-                        סה"כ: {sum}%
-                      </span>
-                    </div>
-                    <div className="space-y-3">
-                      {catInvestments.map(inv => (
-                        <div key={inv._id} className="bg-zinc-800/30 p-4 rounded-2xl border border-zinc-800/50">
-                          <div className="flex justify-between items-center mb-2">
-                            <span className="text-zinc-300 font-bold text-xs">{inv.name}</span>
-                            <input 
-                              type="number"
-                              value={weights[inv.name] || 0}
-                              onChange={(e) => setLocalInvestmentWeights(prev => ({
-                                ...prev,
-                                [cat.name]: { ...(prev[cat.name] || {}), [inv.name]: Number(e.target.value) }
-                              }))}
-                              className="bg-zinc-900 border border-zinc-700 px-2 py-1 rounded-lg w-14 text-center text-emerald-400 font-black text-[10px] outline-none"
-                            />
-                          </div>
-                          <input 
-                            type="range" min="0" max="100" 
-                            value={weights[inv.name] || 0} 
-                            onChange={(e) => setLocalInvestmentWeights(prev => ({
-                              ...prev,
-                              [cat.name]: { ...(prev[cat.name] || {}), [inv.name]: Number(e.target.value) }
-                            }))}
-                            className="w-full accent-emerald-500"
-                          />
-                        </div>
-                      ))}
                     </div>
                   </div>
-                );
-              })}
+
+                  {/* Legend */}
+                  <div className="flex flex-wrap justify-center gap-x-4 gap-y-1">
+                    {(() => {
+                      const colors = ["#D4AF37","#10b981","#6366f1","#f97316","#ec4899","#06b6d4","#8b5cf6"];
+                      return strategyCategories.map((cat, i) => (
+                        <div key={cat._id} className="flex items-center gap-1.5">
+                          <div className="w-2 h-2 rounded-full" style={{ background: colors[i % colors.length] }} />
+                          <span className="text-[10px] text-zinc-400 font-bold">{cat.name}</span>
+                        </div>
+                      ));
+                    })()}
+                  </div>
+
+                  {/* Auto-distribute */}
+                  <button
+                    onClick={() => {
+                      const count = strategyCategories.length;
+                      if (!count) return;
+                      const even = Math.floor(100 / count);
+                      const newWeights: Record<string, number> = {};
+                      strategyCategories.forEach((cat, i) => {
+                        newWeights[cat.name] = even + (i === 0 ? 100 - even * count : 0);
+                      });
+                      setLocalStrategyWeights(newWeights);
+                    }}
+                    className="w-full py-2.5 rounded-xl bg-zinc-800 border border-zinc-700 text-zinc-400 text-xs font-black hover:border-[#D4AF37]/50 hover:text-[#D4AF37] transition-all"
+                  >
+                    ⚖️ חלוקה שווה אוטומטית
+                  </button>
+
+                  {/* Sliders */}
+                  <div className="space-y-3">
+                    {strategyCategories.map((cat, i) => {
+                      const colors = ["#D4AF37","#10b981","#6366f1","#f97316","#ec4899","#06b6d4","#8b5cf6"];
+                      const color = colors[i % colors.length];
+                      const val = localStrategyWeights[cat.name] || 0;
+                      return (
+                        <div key={cat._id} className="bg-zinc-800/30 p-4 rounded-2xl border border-zinc-800/50">
+                          <div className="flex justify-between items-center mb-3">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2.5 h-2.5 rounded-full" style={{ background: color }} />
+                              <span className="text-white font-bold text-sm">{cat.name}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => setLocalStrategyWeights(prev => ({ ...prev, [cat.name]: Math.max(0, (prev[cat.name] || 0) - 1) }))}
+                                className="w-7 h-7 rounded-lg bg-zinc-700 text-white font-black hover:bg-zinc-600 transition-colors flex items-center justify-center"
+                              >−</button>
+                              <input
+                                type="number"
+                                value={val}
+                                onChange={(e) => setLocalStrategyWeights(prev => ({ ...prev, [cat.name]: Number(e.target.value) }))}
+                                className="bg-zinc-900 border border-zinc-700 px-2 py-1 rounded-lg w-14 text-center font-black text-xs outline-none focus:border-[#D4AF37]"
+                                style={{ color }}
+                              />
+                              <button
+                                onClick={() => setLocalStrategyWeights(prev => ({ ...prev, [cat.name]: Math.min(100, (prev[cat.name] || 0) + 1) }))}
+                                className="w-7 h-7 rounded-lg bg-zinc-700 text-white font-black hover:bg-zinc-600 transition-colors flex items-center justify-center"
+                              >+</button>
+                            </div>
+                          </div>
+                          <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
+                            <div
+                              className="h-full rounded-full transition-all duration-200"
+                              style={{ width: `${Math.min(val, 100)}%`, background: color }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* ── TAB 2: Per-category detail ── */}
+              {strategyTab === "detail" && (
+                <div className="space-y-5 animate-in fade-in duration-200">
+
+                  {/* Category selector pills */}
+                  <div className="flex flex-wrap gap-2">
+                    {strategyCategories.map(cat => {
+                      const weights = localInvestmentWeights[cat.name] || {};
+                      const sum = Object.values(weights).reduce((a: number, b) => a + (b as number), 0);
+                      const isValid = Math.abs(sum - 100) < 0.1;
+                      const hasInvestments = investments.some(inv => inv.category === cat.name && !inv.excludeFromCalculator);
+                      if (!hasInvestments) return null;
+                      return (
+                        <button
+                          key={cat._id}
+                          onClick={() => setSelectedDetailCat(cat.name)}
+                          className={`px-4 py-2 rounded-xl text-xs font-black transition-all border flex items-center gap-1.5 ${selectedDetailCat === cat.name ? 'bg-[#D4AF37] border-[#D4AF37] text-black' : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500'}`}
+                        >
+                          {cat.name}
+                          <span className={`text-[9px] font-black ${selectedDetailCat === cat.name ? 'text-black/60' : isValid ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {isValid ? '✓' : `${Math.round(sum)}%`}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Selected category investments */}
+                  {selectedDetailCat && (() => {
+                    const cat = strategyCategories.find(c => c.name === selectedDetailCat);
+                    if (!cat) return null;
+                    const catInvestments = investments.filter(inv => inv.category === selectedDetailCat && !inv.excludeFromCalculator);
+                    const weights = localInvestmentWeights[selectedDetailCat] || {};
+                    const sum = Object.values(weights).reduce((a: number, b) => a + (b as number), 0);
+                    const isValid = Math.abs(sum - 100) < 0.1;
+
+                    return (
+                      <div className="space-y-4">
+                        {/* Section progress bar */}
+                        <div className="bg-zinc-800/30 rounded-2xl p-4 border border-zinc-800/50 space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-zinc-500 text-[10px] font-black uppercase tracking-widest">סה"כ מוקצה</span>
+                            <span className={`text-sm font-black px-2 py-0.5 rounded-full ${isValid ? 'bg-emerald-500/20 text-emerald-400' : sum > 100 ? 'bg-red-500/20 text-red-400' : 'bg-[#D4AF37]/20 text-[#D4AF37]'}`}>
+                              {Math.round(sum)}% {isValid ? '✓' : ''}
+                            </span>
+                          </div>
+                          <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all duration-300 ${isValid ? 'bg-emerald-500' : sum > 100 ? 'bg-red-500' : 'bg-[#D4AF37]'}`}
+                              style={{ width: `${Math.min(sum, 100)}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Auto-distribute */}
+                        <button
+                          onClick={() => {
+                            const count = catInvestments.length;
+                            if (!count) return;
+                            const even = Math.floor(100 / count);
+                            const newW: Record<string, number> = {};
+                            catInvestments.forEach((inv, i) => {
+                              newW[inv.name] = even + (i === 0 ? 100 - even * count : 0);
+                            });
+                            setLocalInvestmentWeights(prev => ({ ...prev, [selectedDetailCat]: newW }));
+                          }}
+                          className="w-full py-2 rounded-xl bg-zinc-800/50 border border-zinc-700/50 text-zinc-500 text-[10px] font-black hover:border-emerald-500/30 hover:text-emerald-400 transition-all"
+                        >
+                          ⚖️ חלוקה שווה ב{selectedDetailCat}
+                        </button>
+
+                        {/* Investments */}
+                        <div className="space-y-2">
+                          {catInvestments.map(inv => {
+                            const val = weights[inv.name] || 0;
+                            return (
+                              <div key={inv._id} className="bg-zinc-800/30 p-4 rounded-xl border border-zinc-800/50">
+                                <div className="flex justify-between items-center mb-2">
+                                  <span className="text-zinc-300 font-bold text-sm truncate max-w-[140px]">{inv.name}</span>
+                                  <div className="flex items-center gap-1">
+                                    <button
+                                      onClick={() => setLocalInvestmentWeights(prev => ({
+                                        ...prev,
+                                        [selectedDetailCat]: { ...(prev[selectedDetailCat] || {}), [inv.name]: Math.max(0, (prev[selectedDetailCat]?.[inv.name] || 0) - 1) }
+                                      }))}
+                                      className="w-7 h-7 rounded-lg bg-zinc-700 text-white font-black text-sm hover:bg-zinc-600 flex items-center justify-center"
+                                    >−</button>
+                                    <input
+                                      type="number"
+                                      value={val}
+                                      onChange={(e) => setLocalInvestmentWeights(prev => ({
+                                        ...prev,
+                                        [selectedDetailCat]: { ...(prev[selectedDetailCat] || {}), [inv.name]: Number(e.target.value) }
+                                      }))}
+                                      className="bg-zinc-900 border border-zinc-700 px-2 py-1 rounded-lg w-14 text-center text-emerald-400 font-black text-xs outline-none"
+                                    />
+                                    <button
+                                      onClick={() => setLocalInvestmentWeights(prev => ({
+                                        ...prev,
+                                        [selectedDetailCat]: { ...(prev[selectedDetailCat] || {}), [inv.name]: Math.min(100, (prev[selectedDetailCat]?.[inv.name] || 0) + 1) }
+                                      }))}
+                                      className="w-7 h-7 rounded-lg bg-zinc-700 text-white font-black text-sm hover:bg-zinc-600 flex items-center justify-center"
+                                    >+</button>
+                                  </div>
+                                </div>
+                                <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                                  <div
+                                    className="h-full bg-emerald-500/70 rounded-full transition-all duration-200"
+                                    style={{ width: `${Math.min(val, 100)}%` }}
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
             </div>
+
             <div className="p-6 bg-zinc-900/80 backdrop-blur-md border-t border-zinc-800 mt-auto">
-              <button onClick={saveStrategy} className="w-full font-black py-4 rounded-2xl bg-[#D4AF37] text-black hover:bg-[#B8962F] transition-all shadow-lg shadow-[#D4AF37]/20">שמור אסטרטגיה</button>
+              <button onClick={saveStrategy} className="w-full font-black py-4 rounded-2xl bg-[#D4AF37] text-black hover:bg-[#B8962F] transition-all shadow-lg shadow-[#D4AF37]/20">
+                שמור אסטרטגיה
+              </button>
             </div>
           </div>
         </div>
