@@ -1,6 +1,10 @@
 import { useState } from "react";
-import { Calculator, Globe, TrendingUp, Landmark, LayoutGrid } from "lucide-react";
+import { Calculator, Globe, LayoutGrid, CheckCircle2, Loader2 } from "lucide-react";
 import * as LucideIcons from "lucide-react";
+import { useMutation } from "convex/react";
+import { api } from "../../convex/_generated/api";
+import { toast } from "sonner";
+import type { Id } from "../../convex/_generated/dataModel";
 
 interface Category {
   _id: string;
@@ -11,19 +15,21 @@ interface Category {
   defaultCurrency: "ILS" | "USD";
 }
 
+interface Investment {
+  _id: string;
+  name: string;
+  category: string;
+  amount: number;
+  currency: "ILS" | "USD";
+  excludeFromCalculator?: boolean;
+}
+
 interface InvestmentCalculatorProps {
   settings: {
     strategyWeights?: Record<string, number>;
     investmentWeights?: Record<string, Record<string, number>>;
   };
-  investments: Array<{
-    _id: string;
-    name: string;
-    category: string;
-    amount: number;
-    currency: "ILS" | "USD";
-    excludeFromCalculator?: boolean;
-  }>;
+  investments: Investment[];
   categories: Category[];
   exchangeRate: number;
 }
@@ -31,6 +37,9 @@ interface InvestmentCalculatorProps {
 export function InvestmentCalculator({ settings, investments, categories, exchangeRate }: InvestmentCalculatorProps) {
   const [amount, setAmount] = useState<number | "">("");
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | "global">("global");
+  const [isApplying, setIsApplying] = useState(false);
+
+  const updateInvestment = useMutation(api.investments.updateInvestment);
 
   const strategyCategories = categories.filter(c => c.includeInStrategy);
   
@@ -51,7 +60,6 @@ export function InvestmentCalculator({ settings, investments, categories, exchan
     if (selectedCategoryId === "global") {
       const amountInILS = amount as number;
       
-      // Calculate current totals per category
       const categoryTotals = strategyCategories.reduce((acc, cat) => {
         const catAssets = investments.filter(inv => inv.category === cat.name && !inv.excludeFromCalculator);
         acc[cat.name] = catAssets.reduce((sum, inv) => sum + getILSValue(inv), 0);
@@ -78,6 +86,8 @@ export function InvestmentCalculator({ settings, investments, categories, exchan
       return results.map(res => ({
         ...res,
         amount: totalDiff > 0 ? (res.diff / totalDiff) * amountInILS : 0,
+        amountToAddILS: 0, 
+        originalInvestment: null,
         color: "text-[#D4AF37]"
       }));
     }
@@ -102,7 +112,8 @@ export function InvestmentCalculator({ settings, investments, categories, exchan
       return {
         label: inv.name,
         diff: Math.max(0, targetValILS - currentValILS),
-        percent: weight
+        percent: weight,
+        inv
       };
     });
 
@@ -110,13 +121,51 @@ export function InvestmentCalculator({ settings, investments, categories, exchan
     return results.map(res => ({
       label: res.label,
       amount: totalDiff > 0 ? (res.diff / totalDiff * amountInILS) / (isUSD ? exchangeRate : 1) : 0,
+      amountToAddILS: totalDiff > 0 ? (res.diff / totalDiff * amountInILS) : 0,
+      originalInvestment: res.inv,
       percent: res.percent,
       color: "text-emerald-400",
       currency: isUSD ? "$" : "₪"
     }));
   };
 
+  const handleApplyDistribution = async () => {
+    if (selectedCategoryId === "global" || !amount || results.length === 0) return;
+    
+    setIsApplying(true);
+    try {
+      const promises = results.map(async (res) => {
+        if (!res.originalInvestment || res.amountToAddILS <= 0) return;
+        
+        const inv = res.originalInvestment;
+        // ממירים את הסכום שצריך להוסיף (שהוא כרגע בשקלים) למטבע של ההשקעה הספציפית
+        const amountToAddInInvCurrency = inv.currency === "USD" 
+          ? res.amountToAddILS / exchangeRate 
+          : res.amountToAddILS;
+          
+        await updateInvestment({
+          investmentId: inv._id as Id<"investments">,
+          name: inv.name,
+          amount: inv.amount + amountToAddInInvCurrency,
+          currency: inv.currency,
+          category: inv.category,
+          excludeFromCalculator: inv.excludeFromCalculator
+        });
+      });
+
+      await Promise.all(promises);
+      toast.success("החלוקה יושמה בהצלחה!");
+      setAmount(""); // איפוס המחשבון לאחר ההחלה
+    } catch (error) {
+      console.error("Error applying distribution:", error);
+      toast.error("שגיאה בעדכון ההשקעות");
+    } finally {
+      setIsApplying(false);
+    }
+  };
+
   const results = calculateDistribution();
+  const showApplyButton = selectedCategoryId !== "global" && typeof amount === 'number' && amount > 0 && results.some(r => r.amount > 0);
 
   return (
     <div className="space-y-6">
@@ -129,7 +178,7 @@ export function InvestmentCalculator({ settings, investments, categories, exchan
         </div>
 
         <div className="space-y-6">
-          {/* Mode Selector - Dynamic */}
+          {/* Mode Selector */}
           <div className="flex overflow-x-auto p-1 bg-zinc-800 rounded-2xl border border-zinc-700 no-scrollbar gap-1">
             <button
               onClick={() => setSelectedCategoryId("global")}
@@ -200,6 +249,22 @@ export function InvestmentCalculator({ settings, investments, categories, exchan
                 </div>
               ))}
             </div>
+          )}
+
+          {/* Apply Distribution Button */}
+          {showApplyButton && (
+            <button
+              onClick={handleApplyDistribution}
+              disabled={isApplying}
+              className="w-full mt-4 bg-[#D4AF37] hover:bg-[#D4AF37]/90 text-black font-black py-4 rounded-2xl transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              {isApplying ? (
+                <Loader2 size={20} className="animate-spin" />
+              ) : (
+                <CheckCircle2 size={20} />
+              )}
+              {isApplying ? "מעדכן נכסים..." : "החל חלוקה"}
+            </button>
           )}
 
           {!amount && (
