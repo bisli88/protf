@@ -20,6 +20,7 @@ interface Investment {
   name: string;
   category: string;
   amount: number;
+  initialAmount?: number;
   currency: "ILS" | "USD";
   excludeFromCalculator?: boolean;
 }
@@ -147,6 +148,7 @@ export function InvestmentCalculator({ settings, investments, categories, exchan
           investmentId: inv._id as Id<"investments">,
           name: inv.name,
           amount: inv.amount + amountToAddInInvCurrency,
+          initialAmount: (inv.initialAmount ?? inv.amount) + amountToAddInInvCurrency,
           currency: inv.currency,
           category: inv.category,
           excludeFromCalculator: inv.excludeFromCalculator

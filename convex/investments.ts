@@ -196,6 +196,7 @@ export const addInvestment = mutation({
     currency: v.union(v.literal("ILS"), v.literal("USD")),
     category: v.string(),
     excludeFromCalculator: v.optional(v.boolean()),
+    initialAmount: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -209,6 +210,7 @@ export const addInvestment = mutation({
       amount: args.amount,
       currency: args.currency,
       category: args.category,
+      initialAmount: args.initialAmount,
       excludeFromCalculator: args.excludeFromCalculator ?? false,
     });
   },
@@ -221,6 +223,7 @@ export const updateInvestment = mutation({
     amount: v.number(),
     currency: v.union(v.literal("ILS"), v.literal("USD")),
     category: v.string(),
+    initialAmount: v.optional(v.number()),
     excludeFromCalculator: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
@@ -239,6 +242,7 @@ export const updateInvestment = mutation({
       amount: args.amount,
       currency: args.currency,
       category: args.category,
+      initialAmount: args.initialAmount,
       excludeFromCalculator: args.excludeFromCalculator ?? false,
     });
   },

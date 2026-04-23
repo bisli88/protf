@@ -7,6 +7,7 @@ const applicationTables = {
     userId: v.id("users"),
     name: v.string(),
     amount: v.number(),
+    initialAmount: v.optional(v.number()),
     currency: v.union(v.literal("ILS"), v.literal("USD")),
     category: v.string(),
     excludeFromCalculator: v.optional(v.boolean()),

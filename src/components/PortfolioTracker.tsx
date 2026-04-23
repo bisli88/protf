@@ -26,6 +26,7 @@ interface Investment {
   _id: Id<"investments">;
   name: string;
   amount: number;
+  initialAmount?: number;
   currency: "ILS" | "USD";
   category: string;
   excludeFromCalculator?: boolean;
@@ -119,6 +120,18 @@ export function PortfolioTracker() {
       : investment.amount;
     return total + valueInILS;
   }, 0);
+
+  const portfolioPnl = (() => {
+    const withInitial = investments.filter(i => i.initialAmount && i.initialAmount > 0);
+    if (withInitial.length === 0) return null;
+    const totalCurrent = withInitial.reduce((sum, i) =>
+      sum + (i.currency === "USD" ? i.amount * exchangeRate : i.amount), 0);
+    const totalInitial = withInitial.reduce((sum, i) =>
+      sum + (i.currency === "USD" ? i.initialAmount! * exchangeRate : i.initialAmount!), 0);
+    const diff = totalCurrent - totalInitial;
+    const pct = (diff / totalInitial) * 100;
+    return { diff, pct, isPositive: diff >= 0 };
+  })();
 
   const handleEdit = (investment: Investment) => {
     setEditingInvestment(investment);
@@ -480,6 +493,21 @@ export function PortfolioTracker() {
               <span className="text-2xl font-normal text-[#D4AF37] ml-2">₪</span>
               {totalValueILS.toLocaleString('he-IL', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
             </p>
+
+            {portfolioPnl && (
+              <div className={`flex items-center justify-center gap-3 mt-3 transition-all duration-500 ${isPrivate ? 'blur-xl' : ''}`}>
+                <span className={`text-sm font-black ${portfolioPnl.isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {portfolioPnl.isPositive ? '▲' : '▼'} {Math.abs(portfolioPnl.pct).toFixed(1)}%
+                </span>
+                <span className={`text-xs font-bold px-3 py-1 rounded-full ${
+                  portfolioPnl.isPositive 
+                    ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' 
+                    : 'bg-red-500/10 text-red-500 border border-red-500/20'
+                }`}>
+                  {portfolioPnl.isPositive ? '+' : ''}₪{Math.abs(portfolioPnl.diff).toLocaleString('he-IL', { maximumFractionDigits: 0 })}
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </div>
