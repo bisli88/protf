@@ -3,7 +3,7 @@ import { api } from "../../convex/_generated/api";
 import { toast } from "sonner";
 import { useState } from "react";
 import type { Id } from "../../convex/_generated/dataModel";
-import { Trash2, Globe, Diamond, Edit3, LayoutGrid, Briefcase, TrendingUp, TrendingDown } from "lucide-react";
+import { Trash2, Globe, Diamond, Edit3, LayoutGrid, Briefcase, TrendingUp, TrendingDown, Calculator } from "lucide-react";
 import * as LucideIcons from "lucide-react";
 
 interface Category {
@@ -23,6 +23,7 @@ interface Investment {
   initialAmount?: number;
   currency: "ILS" | "USD";
   category: string;
+  excludeFromCalculator?: boolean;
 }
 
 interface InvestmentsListProps {
@@ -43,10 +44,12 @@ function getPnl(current: number, initial?: number) {
 export function InvestmentsList({ investments, categories, exchangeRate, onEdit, isPrivate }: InvestmentsListProps) {
   const deleteInvestment = useMutation(api.investments.deleteInvestment);
   const [selectedTab, setSelectedTab] = useState<string>("All");
+  const [hideExcluded, setHideExcluded] = useState(false);
 
-  const filteredInvestments = selectedTab === "All"
+  const filteredInvestments = (selectedTab === "All"
     ? investments
-    : investments.filter(inv => inv.category === selectedTab);
+    : investments.filter(inv => inv.category === selectedTab)
+  ).filter(inv => !hideExcluded || !inv.excludeFromCalculator);
 
   const handleDelete = async (investmentId: Id<"investments">) => {
     if (confirm("האם אתה בטוח שברצונך למחוק השקעה זו?")) {
@@ -98,6 +101,32 @@ export function InvestmentsList({ investments, categories, exchangeRate, onEdit,
           {filteredInvestments.length} ITEMS
         </span>
       </div>
+
+      {/* Calculator filter */}
+      <button
+        onClick={() => setHideExcluded(!hideExcluded)}
+        className="flex items-center gap-3 mb-6 px-2 group"
+      >
+        <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all flex-shrink-0 ${
+          hideExcluded
+            ? 'bg-[#D4AF37] border-[#D4AF37]'
+            : 'bg-transparent border-zinc-600 group-hover:border-zinc-400'
+        }`}>
+          {hideExcluded && (
+            <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+              <path d="M1 4L3.5 6.5L9 1" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <Calculator size={13} className={hideExcluded ? 'text-[#D4AF37]' : 'text-zinc-500'} />
+          <span className={`text-xs font-black uppercase tracking-widest transition-colors ${
+            hideExcluded ? 'text-[#D4AF37]' : 'text-zinc-500 group-hover:text-zinc-400'
+          }`}>
+            הצג רק נכסי מחשבון
+          </span>
+        </div>
+      </button>
 
       {/* Category Tabs */}
       <div className="flex overflow-x-auto pb-4 mb-4 -mx-4 px-4 gap-2 no-scrollbar">
