@@ -168,17 +168,29 @@ export function AddInvestmentForm({ onClose, onSuccess, investment, categories }
 
           {/* Current + Initial amounts */}
           <div className="space-y-4">
-            <div className="space-y-3">
-              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-2">
-                עלות קנייה
-              </label>
-              <input
-                type="number" step="0.01" value={initialAmount}
-                onChange={(e) => setInitialAmount(e.target.value)}
-                onWheel={(e) => (e.target as HTMLInputElement).blur()}
-                className="w-full px-6 py-5 bg-zinc-800/50 border-2 border-zinc-800 focus:border-zinc-700 rounded-3xl outline-none transition-all text-white font-black text-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-zinc-700"
-                placeholder="אופציונלי"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-3">
+                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-2">
+                  עלות קנייה
+                </label>
+                <input
+                  type="number" step="0.01" value={initialAmount}
+                  onChange={(e) => setInitialAmount(e.target.value)}
+                  onWheel={(e) => (e.target as HTMLInputElement).blur()}
+                  className="w-full px-6 py-5 bg-zinc-800/50 border-2 border-zinc-800 focus:border-zinc-700 rounded-3xl outline-none transition-all text-white font-black text-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-zinc-700"
+                  placeholder="אופציונלי"
+                />
+              </div>
+              <div className="space-y-3">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[#D4AF37] ml-2">שווי נוכחי</label>
+                <input
+                  type="number" step="0.01" value={amount}
+                  onChange={(e) => { setAmount(e.target.value); setChange(""); }}
+                  onWheel={(e) => (e.target as HTMLInputElement).blur()}
+                  className="w-full px-6 py-5 bg-zinc-800/50 border-2 border-zinc-800 focus:border-[#D4AF37] rounded-3xl outline-none transition-all text-white font-black text-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  placeholder="0.00" required
+                />
+              </div>
             </div>
 
             {initialAmount && parseFloat(initialAmount) >= 0 && (
@@ -186,38 +198,25 @@ export function AddInvestmentForm({ onClose, onSuccess, investment, categories }
                 <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-2">
                   שינוי ממועד הקנייה
                 </label>
-                <div className="flex gap-3">
-                  {/* +/- toggle */}
-                  <div className="flex rounded-2xl overflow-hidden border-2 border-zinc-800 flex-shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => setChangeDirection("up")}
-                      className={`px-4 py-2 font-black text-sm transition-all ${
-                        changeDirection === "up"
-                          ? "bg-emerald-500/20 text-emerald-400"
-                          : "bg-zinc-800/50 text-zinc-600 hover:text-zinc-400"
-                      }`}
-                    >
-                      +
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setChangeDirection("down")}
-                      className={`px-4 py-2 font-black text-sm transition-all ${
-                        changeDirection === "down"
-                          ? "bg-red-500/20 text-red-400"
-                          : "bg-zinc-800/50 text-zinc-600 hover:text-zinc-400"
-                      }`}
-                    >
-                      −
-                    </button>
-                  </div>
-                  {/* change amount */}
+                <div className="grid gap-5 items-stretch" style={{ gridTemplateColumns: "4rem 1fr", width: "100%" }}>
+                  {/* +/- square toggle */}
+                  <button
+                    type="button"
+                    onClick={() => setChangeDirection(changeDirection === "up" ? "down" : "up")}
+                    className={`aspect-square h-full rounded-3xl flex-shrink-0 flex items-center justify-center font-black text-2xl transition-all border-2 ${
+                      changeDirection === "up"
+                        ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-400"
+                        : "bg-red-500/20 border-red-500/40 text-red-400"
+                    }`}
+                  >
+                    {changeDirection === "up" ? "+" : "−"}
+                  </button>
+                  {/* change input */}
                   <input
                     type="number" step="0.01" value={change}
                     onChange={(e) => setChange(e.target.value)}
                     onWheel={(e) => (e.target as HTMLInputElement).blur()}
-                    className={`flex-1 px-6 py-5 bg-zinc-800/50 border-2 rounded-3xl outline-none transition-all font-black text-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
+                    className={`w-full px-4 py-5 bg-zinc-800/50 border-2 rounded-3xl outline-none transition-all font-black text-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
                       change === "" ? "border-zinc-800 text-white" :
                       changeDirection === "up" ? "border-emerald-500/40 text-emerald-400" : "border-red-500/40 text-red-400"
                     }`}
@@ -226,19 +225,6 @@ export function AddInvestmentForm({ onClose, onSuccess, investment, categories }
                 </div>
               </div>
             )}
-
-            <div className="space-y-3">
-              <label className="text-[10px] font-black uppercase tracking-widest text-[#D4AF37] ml-2">
-                שווי נוכחי
-              </label>
-              <input
-                type="number" step="0.01" value={amount}
-                onChange={(e) => { setAmount(e.target.value); setChange(""); }}
-                onWheel={(e) => (e.target as HTMLInputElement).blur()}
-                className="w-full px-6 py-5 bg-zinc-800/50 border-2 border-zinc-800 focus:border-[#D4AF37] rounded-3xl outline-none transition-all text-white font-black text-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                placeholder="0.00" required
-              />
-            </div>
           </div>
 
           {/* Currency */}
