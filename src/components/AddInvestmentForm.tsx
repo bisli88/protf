@@ -63,7 +63,7 @@ export function AddInvestmentForm({ onClose, onSuccess, investment, categories }
     if (isNaN(amountNum) || amountNum < 0) { toast.error("אנא הזן סכום תקין"); return; }
 
     const initialAmountNum = initialAmount ? parseFloat(initialAmount) : undefined;
-    if (initialAmount && (isNaN(initialAmountNum!) || initialAmountNum! <= 0)) {
+    if (initialAmount && (isNaN(initialAmountNum!) || initialAmountNum! < 0)) {
       toast.error("אנא הזן סכום התחלתי תקין");
       return;
     }
