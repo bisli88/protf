@@ -42,6 +42,8 @@ export function AddInvestmentForm({ onClose, onSuccess, investment, categories }
   const [excludeFromCalculator, setExcludeFromCalculator] = useState(investment?.excludeFromCalculator || false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [ticker, setTicker] = useState(investment?.ticker || "");
+  const [change, setChange] = useState("");
+  const [changeDirection, setChangeDirection] = useState<"up" | "down">("up");
 
   const addInvestment = useMutation(api.investments.addInvestment);
   const updateInvestment = useMutation(api.investments.updateInvestment);
@@ -55,6 +57,17 @@ export function AddInvestmentForm({ onClose, onSuccess, investment, categories }
       setCurrency(selectedCat.defaultCurrency);
     }
   }, [category, categories]);
+
+  useEffect(() => {
+    const initialNum = parseFloat(initialAmount);
+    const changeNum = parseFloat(change);
+    if (!isNaN(initialNum) && initialNum >= 0 && !isNaN(changeNum) && changeNum >= 0) {
+      const result = changeDirection === "up"
+        ? initialNum + changeNum
+        : initialNum - changeNum;
+      if (result >= 0) setAmount(result.toString());
+    }
+  }, [initialAmount, change, changeDirection]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -154,17 +167,7 @@ export function AddInvestmentForm({ onClose, onSuccess, investment, categories }
           </div>
 
           {/* Current + Initial amounts */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-3">
-              <label className="text-[10px] font-black uppercase tracking-widest text-[#D4AF37] ml-2">שווי נוכחי</label>
-              <input
-                type="number" step="0.01" value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                onWheel={(e) => (e.target as HTMLInputElement).blur()}
-                className="w-full px-6 py-5 bg-zinc-800/50 border-2 border-zinc-800 focus:border-[#D4AF37] rounded-3xl outline-none transition-all text-white font-black text-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                placeholder="0.00" required
-              />
-            </div>
+          <div className="space-y-4">
             <div className="space-y-3">
               <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-2">
                 עלות קנייה
@@ -175,6 +178,65 @@ export function AddInvestmentForm({ onClose, onSuccess, investment, categories }
                 onWheel={(e) => (e.target as HTMLInputElement).blur()}
                 className="w-full px-6 py-5 bg-zinc-800/50 border-2 border-zinc-800 focus:border-zinc-700 rounded-3xl outline-none transition-all text-white font-black text-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-zinc-700"
                 placeholder="אופציונלי"
+              />
+            </div>
+
+            {initialAmount && parseFloat(initialAmount) >= 0 && (
+              <div className="space-y-3">
+                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-2">
+                  שינוי ממועד הקנייה
+                </label>
+                <div className="flex gap-3">
+                  {/* +/- toggle */}
+                  <div className="flex rounded-2xl overflow-hidden border-2 border-zinc-800 flex-shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setChangeDirection("up")}
+                      className={`px-4 py-2 font-black text-sm transition-all ${
+                        changeDirection === "up"
+                          ? "bg-emerald-500/20 text-emerald-400"
+                          : "bg-zinc-800/50 text-zinc-600 hover:text-zinc-400"
+                      }`}
+                    >
+                      +
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setChangeDirection("down")}
+                      className={`px-4 py-2 font-black text-sm transition-all ${
+                        changeDirection === "down"
+                          ? "bg-red-500/20 text-red-400"
+                          : "bg-zinc-800/50 text-zinc-600 hover:text-zinc-400"
+                      }`}
+                    >
+                      −
+                    </button>
+                  </div>
+                  {/* change amount */}
+                  <input
+                    type="number" step="0.01" value={change}
+                    onChange={(e) => setChange(e.target.value)}
+                    onWheel={(e) => (e.target as HTMLInputElement).blur()}
+                    className={`flex-1 px-6 py-5 bg-zinc-800/50 border-2 rounded-3xl outline-none transition-all font-black text-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
+                      change === "" ? "border-zinc-800 text-white" :
+                      changeDirection === "up" ? "border-emerald-500/40 text-emerald-400" : "border-red-500/40 text-red-400"
+                    }`}
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-3">
+              <label className="text-[10px] font-black uppercase tracking-widest text-[#D4AF37] ml-2">
+                שווי נוכחי
+              </label>
+              <input
+                type="number" step="0.01" value={amount}
+                onChange={(e) => { setAmount(e.target.value); setChange(""); }}
+                onWheel={(e) => (e.target as HTMLInputElement).blur()}
+                className="w-full px-6 py-5 bg-zinc-800/50 border-2 border-zinc-800 focus:border-[#D4AF37] rounded-3xl outline-none transition-all text-white font-black text-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                placeholder="0.00" required
               />
             </div>
           </div>
