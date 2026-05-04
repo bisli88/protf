@@ -9,6 +9,7 @@ import { InvestmentsList } from "./InvestmentsList";
 import { SignOutButton } from "../SignOutButton";
 import { BottomNav } from "./BottomNav";
 import { InvestmentCalculator } from "./InvestmentCalculator";
+import { ReportView } from "./ReportView";
 import { Plus, TrendingUp, Wallet, Award, Eye, EyeOff, User, Settings, Calculator, Globe, History, Clock, MapPin, Trash2, Edit2, Check, X, LayoutGrid } from "lucide-react";
 import type { Id } from "../../convex/_generated/dataModel";
 import * as LucideIcons from "lucide-react";
@@ -51,7 +52,7 @@ export function PortfolioTracker() {
   
   const [editingInvestment, setEditingInvestment] = useState<Investment | null>(null);
   const [isPrivate, setIsPrivate] = useState(false);
-  const [activeView, setActiveView] = useState<"overview" | "list" | "extra" | "settings">("overview");
+  const [activeView, setActiveView] = useState<"overview" | "list" | "extra" | "report" | "settings">("overview");
   
   // Category editing state
   const [editingCategoryId, setEditingCategoryId] = useState<Id<"categories"> | null>(null);
@@ -350,6 +351,15 @@ export function PortfolioTracker() {
               exchangeRate={exchangeRate}
             />
           </div>
+        );
+      // בתוך renderView() הוסף case:
+      case "report":
+        return (
+          <ReportView
+            investments={investments}
+            categories={categories}
+            exchangeRate={exchangeRate}
+          />
         );
       case "settings":
         return (

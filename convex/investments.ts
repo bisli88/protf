@@ -5,9 +5,9 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 const ensureArray = (val: any) => {
   if (Array.isArray(val)) return val;
   if (val && typeof val === "object") {
-    return Object.entries(val).map(([name, percent]) => ({ 
-      name, 
-      percent: typeof percent === "number" ? percent : 0 
+    return Object.entries(val).map(([name, percent]) => ({
+      name,
+      percent: typeof percent === "number" ? percent : 0,
     }));
   }
   return [];
@@ -20,13 +20,15 @@ const DEFAULT_CATEGORIES = [
   { name: "Short-Term", defaultCurrency: "ILS" as const, includeInStrategy: false, iconName: "Clock", color: "orange" },
 ];
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Portfolio queries
+// ─────────────────────────────────────────────────────────────────────────────
+
 export const getPortfolio = query({
   args: {},
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      return null;
-    }
+    if (!userId) return null;
 
     const investments = await ctx.db
       .query("investments")
@@ -51,27 +53,33 @@ export const getPortfolio = query({
     return {
       investments,
       categories,
-      exchangeRate: exchangeRate?.usdToIls || 3.7, // Default rate
+      exchangeRate: exchangeRate?.usdToIls || 3.7,
       lastUpdated: exchangeRate?.lastUpdated || Date.now(),
-      settings: settings ? {
-        ...settings,
-        strategyWeights: settings.strategyWeights || {},
-        investmentWeights: settings.investmentWeights || {},
-        idealIsraelPercent: settings.idealIsraelPercent ?? 40,
-        abroadIdeals: ensureArray(settings.abroadIdeals),
-        israelIdeals: ensureArray(settings.israelIdeals),
-        customCharts: settings.customCharts || [],
-      } : { 
-        strategyWeights: {},
-        investmentWeights: {},
-        idealIsraelPercent: 40, 
-        abroadIdeals: [], 
-        israelIdeals: [],
-        customCharts: [],
-      },
+      settings: settings
+        ? {
+            ...settings,
+            strategyWeights: settings.strategyWeights || {},
+            investmentWeights: settings.investmentWeights || {},
+            idealIsraelPercent: settings.idealIsraelPercent ?? 40,
+            abroadIdeals: ensureArray(settings.abroadIdeals),
+            israelIdeals: ensureArray(settings.israelIdeals),
+            customCharts: settings.customCharts || [],
+          }
+        : {
+            strategyWeights: {},
+            investmentWeights: {},
+            idealIsraelPercent: 40,
+            abroadIdeals: [],
+            israelIdeals: [],
+            customCharts: [],
+          },
     };
   },
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Categories
+// ─────────────────────────────────────────────────────────────────────────────
 
 export const seedCategories = mutation({
   args: {},
@@ -86,13 +94,10 @@ export const seedCategories = mutation({
 
     if (existing.length === 0) {
       for (const cat of DEFAULT_CATEGORIES) {
-        await ctx.db.insert("categories", {
-          userId,
-          ...cat,
-        });
+        await ctx.db.insert("categories", { userId, ...cat });
       }
     }
-  }
+  },
 });
 
 export const addCategory = mutation({
@@ -140,6 +145,10 @@ export const deleteCategory = mutation({
   },
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// User Settings
+// ─────────────────────────────────────────────────────────────────────────────
+
 export const updateSettings = mutation({
   args: {
     strategyWeights: v.optional(v.any()),
@@ -147,18 +156,20 @@ export const updateSettings = mutation({
     idealIsraelPercent: v.optional(v.number()),
     abroadIdeals: v.optional(v.array(v.object({ name: v.string(), percent: v.number() }))),
     israelIdeals: v.optional(v.array(v.object({ name: v.string(), percent: v.number() }))),
-    customCharts: v.optional(v.array(v.object({
-      id: v.string(),
-      title: v.string(),
-      type: v.union(v.literal("categories"), v.literal("single-category")),
-      selectedCategories: v.array(v.string()),
-    }))),
+    customCharts: v.optional(
+      v.array(
+        v.object({
+          id: v.string(),
+          title: v.string(),
+          type: v.union(v.literal("categories"), v.literal("single-category")),
+          selectedCategories: v.array(v.string()),
+        })
+      )
+    ),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new Error("Not authenticated");
-    }
+    if (!userId) throw new Error("Not authenticated");
 
     const existing = await ctx.db
       .query("userSettings")
@@ -189,6 +200,10 @@ export const updateSettings = mutation({
   },
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Investments
+// ─────────────────────────────────────────────────────────────────────────────
+
 export const addInvestment = mutation({
   args: {
     name: v.string(),
@@ -201,9 +216,7 @@ export const addInvestment = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new Error("Not authenticated");
-    }
+    if (!userId) throw new Error("Not authenticated");
 
     await ctx.db.insert("investments", {
       userId,
@@ -231,14 +244,11 @@ export const updateInvestment = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new Error("Not authenticated");
-    }
+    if (!userId) throw new Error("Not authenticated");
 
     const investment = await ctx.db.get(args.investmentId);
-    if (!investment || investment.userId !== userId) {
+    if (!investment || investment.userId !== userId)
       throw new Error("Investment not found or unauthorized");
-    }
 
     await ctx.db.patch(args.investmentId, {
       name: args.name,
@@ -252,15 +262,29 @@ export const updateInvestment = mutation({
   },
 });
 
-export const updateExchangeRate = mutation({
-  args: {
-    usdToIls: v.number(),
-  },
+export const deleteInvestment = mutation({
+  args: { investmentId: v.id("investments") },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new Error("Not authenticated");
-    }
+    if (!userId) throw new Error("Not authenticated");
+
+    const investment = await ctx.db.get(args.investmentId);
+    if (!investment || investment.userId !== userId)
+      throw new Error("Investment not found or unauthorized");
+
+    await ctx.db.delete(args.investmentId);
+  },
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Exchange Rate
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const updateExchangeRate = mutation({
+  args: { usdToIls: v.number() },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
 
     const existing = await ctx.db
       .query("exchangeRates")
@@ -282,21 +306,77 @@ export const updateExchangeRate = mutation({
   },
 });
 
-export const deleteInvestment = mutation({
+// ─────────────────────────────────────────────────────────────────────────────
+// Report Profiles
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const getReportProfiles = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return [];
+    return await ctx.db
+      .query("reportProfiles")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+  },
+});
+
+export const saveReportProfile = mutation({
   args: {
-    investmentId: v.id("investments"),
+    id: v.optional(v.id("reportProfiles")),
+    name: v.string(),
+    includedInvestmentIds: v.optional(v.array(v.string())),
+    hideExcluded: v.boolean(),
+    scope: v.union(v.literal("all"), v.literal("report"), v.literal("category")),
+    sortBy: v.union(
+      v.literal("value"),
+      v.literal("change"),
+      v.literal("name"),
+      v.literal("addOrder")
+    ),
+    fields: v.object({
+      currentValue: v.boolean(),
+      portfolioPercent: v.boolean(),
+      categoryPercent: v.boolean(),
+      changePercent: v.boolean(),
+      grossProfit: v.boolean(),
+      netProfit: v.boolean(),
+      taxPaid: v.boolean(),
+    }),
+    // השדה החדש:
+    displayCurrency: v.union(v.literal("ILS"), v.literal("USD")),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new Error("Not authenticated");
-    }
+    if (!userId) throw new Error("Not authenticated");
 
-    const investment = await ctx.db.get(args.investmentId);
-    if (!investment || investment.userId !== userId) {
-      throw new Error("Investment not found or unauthorized");
-    }
+    const now = Date.now();
+    const { id, ...data } = args;
 
-    await ctx.db.delete(args.investmentId);
+    if (id) {
+      const existing = await ctx.db.get(id);
+      if (!existing || existing.userId !== userId) throw new Error("Not found");
+      await ctx.db.patch(id, { ...data, updatedAt: now });
+      return id;
+    } else {
+      return await ctx.db.insert("reportProfiles", {
+        userId,
+        ...data,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+  },
+});
+
+export const deleteReportProfile = mutation({
+  args: { id: v.id("reportProfiles") },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    const existing = await ctx.db.get(args.id);
+    if (!existing || existing.userId !== userId) throw new Error("Not found");
+    await ctx.db.delete(args.id);
   },
 });

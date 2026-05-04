@@ -1,8 +1,8 @@
-import { LayoutDashboard, Briefcase, Settings, TrendingUp } from "lucide-react";
+import { LayoutDashboard, Briefcase, Settings, TrendingUp, FileText } from "lucide-react";
 
 interface BottomNavProps {
   activeView: string;
-  onViewChange: (view: "overview" | "list" | "extra" | "settings") => void;
+  onViewChange: (view: "overview" | "list" | "extra" | "settings" | "report") => void;
 }
 
 export function BottomNav({ activeView, onViewChange }: BottomNavProps) {
@@ -11,6 +11,7 @@ export function BottomNav({ activeView, onViewChange }: BottomNavProps) {
     { id: "list", label: "נכסים", icon: Briefcase },
     { id: "extra", label: "אסטרטגיה", icon: TrendingUp },
     { id: "settings", label: "הגדרות", icon: Settings },
+    { id: "report", label: "דו\"ח", icon: FileText },
   ];
 
   return (
