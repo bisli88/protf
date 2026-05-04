@@ -197,6 +197,7 @@ export const addInvestment = mutation({
     category: v.string(),
     excludeFromCalculator: v.optional(v.boolean()),
     initialAmount: v.optional(v.number()),
+    ticker: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -212,6 +213,7 @@ export const addInvestment = mutation({
       category: args.category,
       initialAmount: args.initialAmount,
       excludeFromCalculator: args.excludeFromCalculator ?? false,
+      ticker: args.ticker,
     });
   },
 });
@@ -225,6 +227,7 @@ export const updateInvestment = mutation({
     category: v.string(),
     initialAmount: v.optional(v.number()),
     excludeFromCalculator: v.optional(v.boolean()),
+    ticker: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -244,6 +247,7 @@ export const updateInvestment = mutation({
       category: args.category,
       initialAmount: args.initialAmount,
       excludeFromCalculator: args.excludeFromCalculator ?? false,
+      ticker: args.ticker,
     });
   },
 });

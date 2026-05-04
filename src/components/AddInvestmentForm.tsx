@@ -18,6 +18,7 @@ interface Category {
 interface Investment {
   _id: Id<"investments">;
   name: string;
+  ticker?: string;  
   amount: number;
   initialAmount?: number;
   currency: "ILS" | "USD";
@@ -40,6 +41,7 @@ export function AddInvestmentForm({ onClose, onSuccess, investment, categories }
   const [category, setCategory] = useState<string>(investment?.category || categories[0]?.name || "");
   const [excludeFromCalculator, setExcludeFromCalculator] = useState(investment?.excludeFromCalculator || false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [ticker, setTicker] = useState(investment?.ticker || "");
 
   const addInvestment = useMutation(api.investments.addInvestment);
   const updateInvestment = useMutation(api.investments.updateInvestment);
@@ -58,7 +60,7 @@ export function AddInvestmentForm({ onClose, onSuccess, investment, categories }
     e.preventDefault();
     if (!name.trim()) { toast.error("אנא הזן שם להשקעה"); return; }
     const amountNum = parseFloat(amount);
-    if (isNaN(amountNum) || amountNum <= 0) { toast.error("אנא הזן סכום תקין"); return; }
+    if (isNaN(amountNum) || amountNum < 0) { toast.error("אנא הזן סכום תקין"); return; }
 
     const initialAmountNum = initialAmount ? parseFloat(initialAmount) : undefined;
     if (initialAmount && (isNaN(initialAmountNum!) || initialAmountNum! <= 0)) {
@@ -77,6 +79,7 @@ export function AddInvestmentForm({ onClose, onSuccess, investment, categories }
           currency,
           category,
           excludeFromCalculator,
+          ticker: ticker.toUpperCase() || undefined,
         });
         toast.success("ההשקעה עודכנה בהצלחה");
       } else {
@@ -87,6 +90,7 @@ export function AddInvestmentForm({ onClose, onSuccess, investment, categories }
           currency,
           category,
           excludeFromCalculator,
+          ticker: ticker.toUpperCase() || undefined,
         });
         toast.success("ההשקעה נוספה לפורטפוליו");
       }
@@ -131,6 +135,21 @@ export function AddInvestmentForm({ onClose, onSuccess, investment, categories }
               className="w-full px-6 py-5 bg-zinc-800/50 border-2 border-zinc-800 focus:border-[#D4AF37] rounded-3xl outline-none transition-all text-white font-bold text-lg"
               placeholder="e.g. Apple Stock, Gold, Crypto..."
               required
+            />
+          </div>
+
+          {/* Ticker */}
+          <div className="space-y-3">
+            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-2">
+              טיקר <span className="text-zinc-700">(אופציונלי)</span>
+            </label>
+            <input
+              type="text"
+              value={ticker}
+              onChange={(e) => setTicker(e.target.value.toUpperCase())}
+              maxLength={10}
+              className="w-full px-6 py-5 bg-zinc-800/50 border-2 border-zinc-800 focus:border-zinc-600 rounded-3xl outline-none transition-all text-white font-black text-lg tracking-widest placeholder:text-zinc-700 placeholder:font-bold placeholder:tracking-normal"
+              placeholder="AAPL, BTC..."
             />
           </div>
 

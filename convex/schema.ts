@@ -11,6 +11,7 @@ const applicationTables = {
     currency: v.union(v.literal("ILS"), v.literal("USD")),
     category: v.string(),
     excludeFromCalculator: v.optional(v.boolean()),
+    ticker: v.optional(v.string()),
   }).index("by_user", ["userId"]),
 
   categories: defineTable({

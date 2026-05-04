@@ -18,6 +18,7 @@ interface Category {
 interface Investment {
   _id: Id<"investments">;
   name: string;
+  ticker?: string; 
   amount: number;
   initialAmount?: number;
   currency: "ILS" | "USD";
@@ -187,9 +188,16 @@ export function InvestmentsList({ investments, categories, exchangeRate, onEdit,
                     </div>
                     <div>
                       <h4 className="font-bold text-white text-base leading-tight">{investment.name}</h4>
-                      <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500">
-                        {investment.category}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        {investment.ticker && (
+                          <span className="text-[9px] font-black uppercase tracking-widest text-[#D4AF37]/70 bg-[#D4AF37]/10 px-1.5 py-0.5 rounded-md">
+                            {investment.ticker}
+                          </span>
+                        )}
+                        <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500">
+                          {investment.category}
+                        </span>
+                      </div>
                     </div>
                   </div>
 
