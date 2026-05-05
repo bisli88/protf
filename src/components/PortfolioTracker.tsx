@@ -52,7 +52,7 @@ export function PortfolioTracker() {
   
   const [editingInvestment, setEditingInvestment] = useState<Investment | null>(null);
   const [isPrivate, setIsPrivate] = useState(false);
-  const [activeView, setActiveView] = useState<"overview" | "list" | "extra" | "report" | "settings">("overview");
+  const [activeView, setActiveView] = useState<"overview" | "list" | "extra" | "settings" | "report">("overview");
   
   // Category editing state
   const [editingCategoryId, setEditingCategoryId] = useState<Id<"categories"> | null>(null);

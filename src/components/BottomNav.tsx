@@ -2,7 +2,7 @@ import { LayoutDashboard, Briefcase, Settings, TrendingUp, FileText } from "luci
 
 interface BottomNavProps {
   activeView: string;
-  onViewChange: (view: "overview" | "list" | "extra" | "settings" | "report") => void;
+  onViewChange: (view: "overview" | "list" | "extra" | "report" | "settings") => void;
 }
 
 export function BottomNav({ activeView, onViewChange }: BottomNavProps) {
@@ -10,8 +10,8 @@ export function BottomNav({ activeView, onViewChange }: BottomNavProps) {
     { id: "overview", label: "ראשי", icon: LayoutDashboard },
     { id: "list", label: "נכסים", icon: Briefcase },
     { id: "extra", label: "אסטרטגיה", icon: TrendingUp },
-    { id: "settings", label: "הגדרות", icon: Settings },
     { id: "report", label: "דו\"ח", icon: FileText },
+    { id: "settings", label: "הגדרות", icon: Settings },
   ];
 
   return (
