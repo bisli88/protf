@@ -12,7 +12,7 @@ export function SignInForm() {
   return (
     <div className="w-full">
       <form
-        className="flex flex-col gap-form-field"
+        className="flex flex-col gap-4"
         onSubmit={(e) => {
           e.preventDefault();
           setSubmitting(true);
@@ -24,62 +24,64 @@ export function SignInForm() {
             })
             .catch((error) => {
               console.error("Sign-in error:", error);
-              let toastTitle = "";
-              if (error.message.includes("Invalid password")) {
-                toastTitle = "סיסמה שגויה. אנא נסה שוב.";
-              } else {
-                toastTitle =
-                  flow === "signIn"
-                    ? `לא ניתן להתחבר: ${error.message}`
-                    : `לא ניתן להירשם: ${error.message}`;
-              }
-              toast.error(toastTitle);
+              toast.error(error.message);
               setSubmitting(false);
             });
         }}
       >
-        <input
-          className="auth-input-field"
-          type="email"
-          name="email"
-          placeholder="אימייל"
-          required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Email</label>
+          <input
+            className="w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-blue-500 outline-none"
+            type="email"
+            name="email"
+            placeholder="name@example.com"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        </div>
 
-        <input
-          className="auth-input-field"
-          type="password"
-          name="password"
-          placeholder="סיסמה"
-          required
-        />
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Password</label>
+          <input
+            className="w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-blue-500 outline-none"
+            type="password"
+            name="password"
+            placeholder="••••••••"
+            required
+          />
+        </div>
 
-        <button className="auth-button" type="submit" disabled={submitting}>
-          {flow === "signIn" ? "התחברות" : "הרשמה"}
+        <button
+          className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
+          type="submit"
+          disabled={submitting}
+        >
+          {flow === "signIn" ? "Sign In" : "Sign Up"}
         </button>
-        <div className="text-center text-sm text-secondary">
+        
+        <div className="text-center text-sm">
           {flow === "signIn" ? (
             <>
-              <span>אין לך חשבון? </span>
+              <span>Don't have an account? </span>
               <button
                 type="button"
-                className="text-primary hover:text-primary-hover hover:underline font-medium cursor-pointer"
+                className="text-blue-600 hover:underline font-medium"
                 onClick={() => setFlow("signUp")}
               >
-                הירשם במקום
+                Sign Up
               </button>
             </>
           ) : (
             <>
-              <span>כבר יש לך חשבון? </span>
+              <span>Already have an account? </span>
               <button
                 type="button"
-                className="text-primary hover:text-primary-hover hover:underline font-medium cursor-pointer"
+                className="text-blue-600 hover:underline font-medium"
                 onClick={() => setFlow("signIn")}
               >
-                התחבר במקום
+                Sign In
               </button>
             </>
           )}

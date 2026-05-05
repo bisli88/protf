@@ -2,70 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --color-gold-light: #FBF5B7;
-  --color-gold: #D4AF37;
-  --color-gold-dark: #AA771C;
-  --color-dark-bg: #0A0A0B;
-  --color-card-bg: #161618;
-}
-
-@layer utilities {
-  .bg-gold-gradient {
-    background: linear-gradient(135deg, #BF953F, #FCF6BA, #B38728, #FBF5B7, #AA771C);
+@layer base {
+  body {
+    @apply antialiased;
   }
-  .text-gold {
-    background: linear-gradient(to right, #BF953F, #FCF6BA, #B38728, #FBF5B7, #AA771C);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-  }
-  .border-gold {
-    border-image: linear-gradient(to right, #BF953F, #FCF6BA, #B38728) 1;
-  }
-}
-
-body {
-  font-family: "Inter Variable", sans-serif;
-  color: #E4E4E7;
-  background: var(--color-dark-bg);
-  /* Hide scrollbar for Chrome, Safari and Opera */
-  -webkit-overflow-scrolling: touch;
-}
-
-/* Hide scrollbar globally for all elements */
-* {
-  -ms-overflow-style: none !important;  /* IE and Edge */
-  scrollbar-width: none !important;  /* Firefox */
-}
-
-*::-webkit-scrollbar {
-  display: none !important; /* Chrome, Safari and Opera */
-  width: 0 !important;
-  height: 0 !important;
-}
-
-.auth-input-field {
-  @apply w-full px-4 py-3 rounded-2xl bg-zinc-900 border border-zinc-800 text-white focus:border-[#D4AF37] outline-none transition-all;
-}
-
-.auth-button {
-  @apply w-full px-4 py-3 rounded-2xl bg-gold-gradient text-black font-black hover:opacity-90 transition-all shadow-lg;
-}
-
-@keyframes fade-in {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.animate-fade-in {
-  animation: fade-in 0.4s ease-out forwards;
-}
-
-@keyframes slide-up {
-  from { transform: translateY(100%); }
-  to { transform: translateY(0); }
-}
-
-.animate-slide-up {
-  animation: slide-up 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
